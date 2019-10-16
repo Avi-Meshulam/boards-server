@@ -13,6 +13,7 @@ const app = express();
 const boardsDataService = new MongooseDataService('board');
 const postsDataService = new MongooseDataService('post');
 const commentsDataService = new MongooseDataService('comment');
+const usersDataService = new MongooseDataService('user');
 
 // middlewares
 app.use(logger('dev'));
@@ -24,6 +25,7 @@ app.use(cors());
 // routes
 app.use('/api/boards', withUploadRouter('image', 'imageData', boardsDataService));
 app.use('/api/posts', withUploadRouter('image', 'imageData', postsDataService));
+app.use('/api/users', withUploadRouter('image', 'imageData', usersDataService));
 app.use('/api/comments', router(commentsDataService));
 app.use('/images', imagesRouter(postsDataService));
 app.use(express.static(path.join(__dirname, 'public')));
