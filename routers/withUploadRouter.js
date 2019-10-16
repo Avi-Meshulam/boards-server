@@ -15,18 +15,26 @@ const withUploadRouter = (inputName, storageName, dataService = new DataService(
       req.body = { ...req.body, projection: { [storageName]: 0 }, sort: { _id: -1 } };
       next();
     }))
+    .get('/images/:name', asyncHandler(async (req, res, next) => {
+      const imageData = await dataService.getImageData(req.params.name);
+      if (!imageData) {
+        next(); // 404 Not Found
+      } else {
+        res.send(new Buffer.from(imageData, 'binary'));
+      }
+    }))
     .post('/', upload.single(inputName), asyncHandler(async (req, res, next) => {
-      setFileData(req);
+      setFileData(req, inputName, storageName);
       const result = filterObj(await dataService.insert(req.body), [storageName]);
       res.json(result);
     }))
     .put('/', upload.single(inputName), asyncHandler(async (req, res, next) => {
-      setFileData(req);
+      setFileData(req, inputName, storageName);
       const result = filterObj(await dataService.update(req.query, req.body), [storageName]);
       res.json(result);
     }))
     .put('/:id', upload.single(inputName), asyncHandler(async (req, res, next) => {
-      setFileData(req);
+      setFileData(req, inputName, storageName);
       const result = filterObj(await dataService.updateById(req.params.id, req.body), [storageName]);
       res.json(result);
     }));

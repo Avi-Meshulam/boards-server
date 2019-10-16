@@ -3,17 +3,11 @@ const cors = require('cors');
 const express = require('express');
 const logger = require('morgan');
 const path = require('path');
-const imagesRouter = require('./routers/imagesRouter');
 const router = require('./routers/router.service');
 const withUploadRouter = require('./routers/withUploadRouter');
 const MongooseDataService = require('./data/services/data.mongoose.service');
 
 const app = express();
-
-const boardsDataService = new MongooseDataService('board');
-const postsDataService = new MongooseDataService('post');
-const commentsDataService = new MongooseDataService('comment');
-const usersDataService = new MongooseDataService('user');
 
 // middlewares
 app.use(logger('dev'));
@@ -23,11 +17,12 @@ app.use(cookieParser());
 app.use(cors());
 
 // routes
-app.use('/api/boards', withUploadRouter('image', 'imageData', boardsDataService));
-app.use('/api/posts', withUploadRouter('image', 'imageData', postsDataService));
-app.use('/api/users', withUploadRouter('image', 'imageData', usersDataService));
-app.use('/api/comments', router(commentsDataService));
-app.use('/images', imagesRouter(postsDataService));
+app.use('/api/boards', withUploadRouter('image', 'imageData', new MongooseDataService('board')));
+app.use('/api/posts', withUploadRouter('image', 'imageData', new MongooseDataService('post')));
+app.use('/api/users', withUploadRouter('image', 'imageData', new MongooseDataService('user')));
+app.use('/api/comments', router(new MongooseDataService('comment')));
+
+// static routes
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((req, res, next) => {
