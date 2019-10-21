@@ -3,9 +3,8 @@ const cors = require('cors');
 const express = require('express');
 const logger = require('morgan');
 const path = require('path');
-const router = require('./routers/router.service');
-const withUploadRouter = require('./routers/withUploadRouter');
 const MongooseDataService = require('./data/services/data.mongoose.service');
+const router = require('./routers/router.service');
 
 const app = express();
 
@@ -16,11 +15,32 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(cors());
 
+// remove trailing slash from url
+app.use((req, res, next) => {
+  if (req.url[req.url.length - 1] === '/') {
+    req.url = req.url.slice(0, -1);
+  }
+  next();
+});
+
 // routes
-app.use('/api/boards', withUploadRouter('image', 'imageData', new MongooseDataService('board')));
-app.use('/api/posts', withUploadRouter('image', 'imageData', new MongooseDataService('post')));
-app.use('/api/users', withUploadRouter('image', 'imageData', new MongooseDataService('user')));
-app.use('/api/comments', router(new MongooseDataService('comment')));
+const boardUploadFields = ['images'];
+const boardSubDocuments = ['images', 'posts', 'comments'];
+app.use(
+  '/api/boards',
+  router(
+    boardUploadFields,
+    boardSubDocuments,
+    new MongooseDataService('board'),
+  ),
+);
+
+const userUploadFields = ['images'];
+const userSubDocuments = ['images'];
+app.use(
+  '/api/users',
+  router(userUploadFields, userSubDocuments, new MongooseDataService('user')),
+);
 
 // static routes
 app.use(express.static(path.join(__dirname, 'public')));
@@ -36,8 +56,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500);
   res.json({
     error: {
-      message: err.message
-    }
+      message: err.message,
+    },
   });
 });
 

@@ -8,6 +8,4 @@ module.exports = class IDataService {
   async updateById(id, data) { return {}; }
   async remove(filter) { return false; }
   async removeById(id) { return false; }
-  async getNextId() { return undefined; }
-  async getImageData(imageName) { return []; }
 };

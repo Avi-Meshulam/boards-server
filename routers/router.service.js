@@ -1,67 +1,200 @@
 const multer = require('multer');
 const Router = require('express').Router;
-const asyncHandler = require('../utils').asyncHandler;
 const DataService = require('../data/services/IDataService');
+const asyncHandler = require('../utils').asyncHandler;
+const httpErrors = require('../httpUtils').httpErrors;
 
-const upload = multer();
+const UPLOAD_MAX_COUNT = 8;
+const upload = multer({ storage: multer.memoryStorage() });
 
-const router = (dataService = new DataService()) => {
-
+const router = (uploadFieldList = [], subDocumentList = [], dataService = new DataService()) => {
+  const uploadFields = uploadFieldList.map(field => ({ name: field }));
   const router = Router();
 
   router
-    .all('*', asyncHandler(async (req, res, next) => {
-      if (!dataService || !dataService.isReady) {
-        res.sendStatus(503);  // Service Unavailable
-      } else {
-        next();
-      }
-    }))
+    // ALL *
+    .all(
+      '*',
+      asyncHandler(async (req, res, next) => {
+        if (!dataService || !dataService.isReady) {
+          res.sendStatus(503); // Service Unavailable
+        } else {
+          next();
+        }
+      }),
+    )
+
+    // ALL /:id/*
+    .all('/:id/*', (req, res, next) => {
+      setSubDocumentInfo(req, subDocumentList);
+      next();
+    })
 
     // GET
-    .get('/', asyncHandler(async (req, res, next) => {
-      // return dataService.get(req.query, req.body);
-      const result = await dataService.get(req.query, req.body);
-      res.json(result);
-    }))
+    .get(
+      '/',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.get(req.query, req.header.options);
+        res.json(result);
+      }),
+    )
 
     // GET /:id
-    .get('/:id', asyncHandler(async (req, res, next) => {
-      const result = await dataService.getById(req.params.id, req.body);
-      res.json(result);
-    }))
+    .get(
+      '/:id',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.getById(req.params.id);
+        res.json(result);
+      }),
+    )
+
+    // GET /:id/*
+    .get(
+      '/:id/*',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.getSubDocument(req.subDocumentInfo);
+        res.json(result);
+      }),
+    )
+
+    // POST *
+    .post(
+      '*',
+      upload.fields(uploadFields, UPLOAD_MAX_COUNT),
+      asyncHandler(async (req, res, next) => {
+        setFilesData(req);
+        next();
+      }),
+    )
 
     // POST
-    .post('/', upload.none(), asyncHandler(async (req, res, next) => {
-      const result = await dataService.insert(req.body);
-      res.json(result);
-    }))
+    .post(
+      '/',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.insert(req.body, req.headers.options);
+        res.json(result);
+      }),
+    )
+
+    // POST/:id/*
+    .post(
+      '/:id/*',
+      asyncHandler(async (req, res, next) => {
+        const path = req.subDocumentInfo.path;
+        if (path[path.length - 1].id) {
+          next(httpErrors.badRequest);
+        }
+        const result = await dataService.insertSubDocument(req.subDocumentInfo, req.body);
+        res.json(result);
+      }),
+    )
+
+    // PUT *
+    .put(
+      '*',
+      upload.fields(uploadFields, UPLOAD_MAX_COUNT),
+      asyncHandler(async (req, res, next) => {
+        setFilesData(req);
+        next();
+      }),
+    )
 
     // PUT
-    .put('/', upload.none(), asyncHandler(async (req, res, next) => {
-      const result = await dataService.update(req.query, req.body);
-      res.json(result);
-    }))
+    .put(
+      '/',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.update(req.query, req.body);
+        res.json(result);
+      }),
+    )
 
     // PUT /:id
-    .put('/:id', upload.none(), asyncHandler(async (req, res, next) => {
-      const result = await dataService.updateById(req.params.id, req.body);
-      res.json(result);
-    }))
+    .put(
+      '/:id',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.updateById(req.params.id, req.body);
+        res.json(result);
+      }),
+    )
+
+    // PUT /:id/*
+    .put(
+      '/:id/*',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.updateSubDocument(req.subDocumentInfo, req.body);
+        res.json(result);
+      }),
+    )
 
     // DELETE
-    .delete('/', asyncHandler(async (req, res, next) => {
-      const result = await dataService.remove(req.query);
-      res.json(result);
-    }))
+    .delete(
+      '/',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.remove(req.query);
+        res.json(result);
+      }),
+    )
 
     // DELETE /:id
-    .delete('/:id', asyncHandler(async (req, res, next) => {
-      const result = await dataService.removeById(req.params.id);
-      res.json(result);
-    }));
+    .delete(
+      '/:id',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.removeById(req.params.id);
+        res.json(result);
+      }),
+    )
+
+    // DELETE /:id/*
+    .delete(
+      '/:id/*',
+      asyncHandler(async (req, res, next) => {
+        const result = await dataService.removeSubDocument(req.subDocumentInfo);
+        res.json(result);
+      }),
+    );
 
   return router;
+};
+
+// *** helper functions *** //
+
+const setFilesData = req => {
+  if (!req.files) {
+    return;
+  }
+  Object.entries(req.files).forEach(([fieldName, files]) => {
+    req.body[fieldName] = [];
+    files.forEach(file => {
+      req.body[fieldName].push({
+        data: file.buffer,
+      });
+    });
+  });
+};
+
+const setSubDocumentInfo = (req, subDocumentList) => {
+  const urlPath = req.path.substr(1).split('/');
+  const subDocument = urlPath[1];
+  if (!subDocumentList.includes(subDocument)) {
+    let err = new Error('404 Not Found');
+    err.status = 404;
+    next(err);
+  }
+  const path = [];
+  for (let index = 1; index < urlPath.length; index++) {
+    if (subDocumentList.includes(urlPath[index])) {
+      path.push(urlPath[index]);
+    } else {
+      path.push({ id: urlPath[index] });
+    }
+  }
+  req.url = `/${req.params.id}/${subDocument}`;
+  req.subDocumentInfo = {
+    ownerId: req.params.id,
+    path,
+    filter: req.query,
+    options: JSON.parse(req.headers.options),
+  };
 };
 
 module.exports = router;
