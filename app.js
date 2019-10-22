@@ -24,23 +24,11 @@ app.use((req, res, next) => {
 });
 
 // routes
-const boardUploadFields = ['images'];
-const boardSubDocuments = ['images', 'posts', 'comments'];
-app.use(
-  '/api/boards',
-  router(
-    boardUploadFields,
-    boardSubDocuments,
-    new MongooseDataService('board'),
-  ),
-);
+const boardUploadFields = ['image'];
+app.use('/api/boards', router(boardUploadFields, new MongooseDataService('board')));
 
-const userUploadFields = ['images'];
-const userSubDocuments = ['images'];
-app.use(
-  '/api/users',
-  router(userUploadFields, userSubDocuments, new MongooseDataService('user')),
-);
+const userUploadFields = ['image'];
+app.use('/api/users', router(userUploadFields, new MongooseDataService('user')));
 
 // static routes
 app.use(express.static(path.join(__dirname, 'public')));

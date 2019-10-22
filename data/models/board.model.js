@@ -1,5 +1,5 @@
 const { model, Schema } = require('mongoose');
-const fileSchema = require('../schemas/file.schema');
+const imageSchema = require('../schemas/image.schema');
 const postSchema = require('../schemas/post.schema');
 
 const CREATED_BY = 'createdBy';
@@ -11,7 +11,7 @@ const boardSchema = new Schema(
     address: String,
     latLng: { type: { lat: Number, lng: Number }, required: true },
     [CREATED_BY]: { type: String, required: true }, // userId (nick name)
-    images: { type: [fileSchema], select: false },
+    images: [imageSchema],
     posts: { type: [postSchema], select: false },
   },
   { timestamps: true },

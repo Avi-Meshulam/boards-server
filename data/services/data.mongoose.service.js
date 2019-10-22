@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const IDataService = require('./IDataService');
+const httpErrors = require('../../httpErrors');
 const isEqual = require('../../utils').isEqual;
 const sortArray = require('../../utils').sortArray;
 
@@ -112,11 +113,6 @@ class MongooseDataService extends IDataService {
       return await removeSingleSubDocument(document, subDocument);
     }
   }
-
-  // async getFileData(fieldName, id) {
-  //   const result = await this._model[fieldName].id(id);
-  //   return result && result._doc[data];
-  // }
 }
 
 // *** helper functions *** //
@@ -186,13 +182,18 @@ function applyOptionsToQuery(query, options = {}) {
 }
 
 function applyPathToQuery(query, path = []) {
-  if (path[0].id) {
-    throw new Error('invalid url');
-  }
   if (path[1] && path[1].id) {
     query.and([{ [`${path[0]}._id`]: path[1].id }]);
   }
-  query.select(`+${path[0]}`);
+  let fields = [];
+  for (let index = 0; index < path.length; index+=2) {
+    fields.push(path[index]);
+  }
+  let expression = '';
+  for (let index = 0; index < fields.length; index++) {
+    expression += `${expression ? ' ' : ''}+${fields.slice(0,index + 1).join('.')}`;
+  }
+  query.select(expression);
 }
 
 function applyPathToDocument(document, path = []) {
@@ -224,15 +225,15 @@ function applyOptionsToArray(arr, options = {}) {
     Object.entries(options).forEach(([key, value]) => {
       switch (key) {
         case 'sort':
-            sortMongooseArray(arr, value);
-            break;
+          sortMongooseArray(arr, value);
+          break;
         case 'skip':
-            arr =  arr.slice(value);
-            // return arr.splice(value);
-            break;
+          arr = arr.slice(value);
+          // return arr.splice(value);
+          break;
         case 'limit':
-            arr = arr.slice(0, value);
-            break;
+          arr = arr.slice(0, value);
+          break;
         default:
           break;
       }
@@ -250,7 +251,7 @@ function sortMongooseArray(arr, sortExp) {
   } else if (typeof sortExp === 'string') {
     const tokens = sortExp.split(' ');
     tokens.forEach(token => {
-      const isReverse = (token[0] === '-');
+      const isReverse = token[0] === '-';
       const field = isReverse ? token.substr(1) : token;
       return sortArray(arr, field, isReverse);
     });

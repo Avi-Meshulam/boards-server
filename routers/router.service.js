@@ -2,12 +2,12 @@ const multer = require('multer');
 const Router = require('express').Router;
 const DataService = require('../data/services/IDataService');
 const asyncHandler = require('../utils').asyncHandler;
-const httpErrors = require('../httpUtils').httpErrors;
+const httpErrors = require('../httpErrors');
 
 const UPLOAD_MAX_COUNT = 8;
 const upload = multer({ storage: multer.memoryStorage() });
 
-const router = (uploadFieldList = [], subDocumentList = [], dataService = new DataService()) => {
+const router = (uploadFieldList = [], dataService = new DataService()) => {
   const uploadFields = uploadFieldList.map(field => ({ name: field }));
   const router = Router();
 
@@ -26,7 +26,7 @@ const router = (uploadFieldList = [], subDocumentList = [], dataService = new Da
 
     // ALL /:id/*
     .all('/:id/*', (req, res, next) => {
-      setSubDocumentInfo(req, subDocumentList);
+      setSubDocumentInfo(req);
       next();
     })
 
@@ -163,37 +163,28 @@ const setFilesData = req => {
     return;
   }
   Object.entries(req.files).forEach(([fieldName, files]) => {
-    req.body[fieldName] = [];
     files.forEach(file => {
-      req.body[fieldName].push({
-        data: file.buffer,
-      });
+      req.body[fieldName] = file.buffer;
     });
   });
 };
 
-const setSubDocumentInfo = (req, subDocumentList) => {
+const setSubDocumentInfo = req => {
   const urlPath = req.path.substr(1).split('/');
-  const subDocument = urlPath[1];
-  if (!subDocumentList.includes(subDocument)) {
-    let err = new Error('404 Not Found');
-    err.status = 404;
-    next(err);
-  }
   const path = [];
   for (let index = 1; index < urlPath.length; index++) {
-    if (subDocumentList.includes(urlPath[index])) {
-      path.push(urlPath[index]);
-    } else {
+    if (index % 2 === 0) {
       path.push({ id: urlPath[index] });
+    } else {
+      path.push(urlPath[index]);
     }
   }
-  req.url = `/${req.params.id}/${subDocument}`;
+  req.url = `/${req.params.id}/${urlPath[1]}`;
   req.subDocumentInfo = {
     ownerId: req.params.id,
     path,
     filter: req.query,
-    options: JSON.parse(req.headers.options),
+    options: req.headers.options && JSON.parse(req.headers.options),
   };
 };
 
