@@ -82,7 +82,7 @@ class MongooseDataService extends IDataService {
           }
         });
       } else {
-        if (!arr) {
+        if (!newEntry) {
           throw httpErrors.badRequest;
         }
         newEntry[key] = value;
