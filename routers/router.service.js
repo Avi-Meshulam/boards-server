@@ -7,8 +7,8 @@ const httpErrors = require('../httpErrors');
 const UPLOAD_MAX_COUNT = 8;
 const upload = multer({ storage: multer.memoryStorage() });
 
-const router = (uploadFieldList = [], dataService = new DataService()) => {
-  const uploadFields = uploadFieldList.map(field => ({ name: field }));
+const router = (uploadMap = new Map(), dataService = new DataService()) => {
+  const uploadFields = [...uploadMap.keys()].map(key => ({ name: key }));
   const router = Router();
 
   router
@@ -62,7 +62,7 @@ const router = (uploadFieldList = [], dataService = new DataService()) => {
       '*',
       upload.fields(uploadFields, UPLOAD_MAX_COUNT),
       asyncHandler(async (req, res, next) => {
-        setFilesData(req);
+        setFilesData(req, uploadMap);
         next();
       }),
     )
@@ -94,7 +94,7 @@ const router = (uploadFieldList = [], dataService = new DataService()) => {
       '*',
       upload.fields(uploadFields, UPLOAD_MAX_COUNT),
       asyncHandler(async (req, res, next) => {
-        setFilesData(req);
+        setFilesData(req, uploadMap);
         next();
       }),
     )
@@ -158,13 +158,14 @@ const router = (uploadFieldList = [], dataService = new DataService()) => {
 
 // *** helper functions *** //
 
-const setFilesData = req => {
+const setFilesData = (req, uploadMap) => {
   if (!req.files) {
     return;
   }
   Object.entries(req.files).forEach(([fieldName, files]) => {
+    req.body[fieldName] = [];
     files.forEach(file => {
-      req.body[fieldName] = file.buffer;
+      req.body[fieldName].push({[uploadMap.get(fieldName)]: file.buffer});
     });
   });
 };

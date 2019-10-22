@@ -23,12 +23,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// routes
-const boardUploadFields = ['image'];
-app.use('/api/boards', router(boardUploadFields, new MongooseDataService('board')));
+// key: upload field name
+// value: storage field name
+const uploadMap = new Map();
+uploadMap.set('images', 'image');
+uploadMap.set('image', 'image');
 
-const userUploadFields = ['image'];
-app.use('/api/users', router(userUploadFields, new MongooseDataService('user')));
+// routes
+app.use('/api/boards', router(uploadMap, new MongooseDataService('board')));
+app.use('/api/users', router(uploadMap, new MongooseDataService('user')));
 
 // static routes
 app.use(express.static(path.join(__dirname, 'public')));

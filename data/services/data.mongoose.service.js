@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 const IDataService = require('./IDataService');
 const httpErrors = require('../../httpErrors');
-const isEqual = require('../../utils').isEqual;
-const sortArray = require('../../utils').sortArray;
+const { isEqual, sortArray, tryParseJSON } = require('../../utils');
 
 const DB_NAME = 'boards';
 const DB_URL = process.env.MONGODB_URI || `mongodb://localhost:27017/${DB_NAME}`;
@@ -50,14 +49,58 @@ class MongooseDataService extends IDataService {
   // insert data to a subDocument array OR many subDocument arrays
   async insertSubDocument(subDocumentInfo, data) {
     validateRequest('POST', subDocumentInfo, data);
+
     let [document, subDocument] = await getSubDocumentHelper(this._model, subDocumentInfo);
     if (!Array.isArray(subDocument)) {
-      throw new Error(httpErrors.badRequest);
+      throw httpErrors.badRequest;
     }
-    const newItem = subDocument.create(data);
-    subDocument.push(newItem);
+
+    const insertArrayItem = (arr, item) => {
+      if (!arr) {
+        throw httpErrors.badRequest;
+      }
+      const newItem = arr.create(tryParseJSON(item));
+      arr.push(newItem);
+    };
+
+    let nInserted = 0;
+    const insertItem = item => {
+      const newItem = subDocument.create(tryParseJSON(item));
+      subDocument.push(newItem);
+      nInserted++;
+    };
+
+    let newEntry = subDocument.create();
+    Object.entries(data).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          if (Array.isArray(newEntry[key])) {
+            insertArrayItem(newEntry[key], item);
+          } else {
+            insertItem(item);
+            newEntry = null;
+          }
+        });
+      } else {
+        if (!arr) {
+          throw httpErrors.badRequest;
+        }
+        newEntry[key] = value;
+      }
+    });
+
+    if (newEntry) {
+      subDocument.push(newEntry);
+    }
+
     await document.save();
-    return subDocument.id(newItem._id);
+
+    return newEntry
+      ? await this.getSubDocument({
+          ...subDocumentInfo,
+          path: [...subDocumentInfo.path, { id: newEntry._id }],
+        })
+      : (await this.getSubDocument(subDocumentInfo)).slice(-nInserted);
   }
 
   async update(filter, data) {
@@ -186,12 +229,12 @@ function applyPathToQuery(query, path = []) {
     query.and([{ [`${path[0]}._id`]: path[1].id }]);
   }
   let fields = [];
-  for (let index = 0; index < path.length; index+=2) {
+  for (let index = 0; index < path.length; index += 2) {
     fields.push(path[index]);
   }
   let expression = '';
   for (let index = 0; index < fields.length; index++) {
-    expression += `${expression ? ' ' : ''}+${fields.slice(0,index + 1).join('.')}`;
+    expression += `${expression ? ' ' : ''}+${fields.slice(0, index + 1).join('.')}`;
   }
   query.select(expression);
 }
@@ -265,7 +308,7 @@ function validateRequest(method, subDocumentInfo, data) {
   switch (method) {
     case 'POST':
       if (path[path.length - 1].id) {
-        throw new Error(httpErrors.badRequest);
+        throw httpErrors.badRequest;
       }
       break;
     case 'PUT':
@@ -276,7 +319,7 @@ function validateRequest(method, subDocumentInfo, data) {
               value = JSON.parse(value);
             } catch (error) {}
             if (Array.isArray(value)) {
-              throw new Error(httpErrors.badRequest);
+              throw httpErrors.badRequest;
             }
           }
         });

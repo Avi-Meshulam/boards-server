@@ -1,6 +1,7 @@
 const { Schema } = require('mongoose');
 const imageSchema = require('./image.schema');
 const commentSchema = require('./comment.schema');
+const { setReadonlyMiddleware } = require('../../dbUtils');
 
 const USER_ID = 'userId';
 
@@ -15,11 +16,6 @@ const postSchema = new Schema(
   { timestamps: true },
 );
 
-postSchema.pre('save', function(next) {
-  if (this.isModified(USER_ID)) {
-    throw new Error(`field ${USER_ID} is read-only`);
-  }
-  next();
-});
+setReadonlyMiddleware(postSchema, USER_ID);
 
 module.exports = postSchema;

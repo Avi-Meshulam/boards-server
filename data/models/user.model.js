@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema(
     _id: String, // user's nick name
     name: String,
     email: { type: String, required: true },
-    images: [imageSchema],
+    image: [imageSchema],
   },
   { timestamps: true },
 );
