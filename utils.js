@@ -65,34 +65,13 @@ function sortNumbers(arr, field, isReverse = false) {
   }
 }
 
-function removeTimestamp(obj) {
-  const { createdAt, updatedAt, ...result } = obj;
-  return result;
-}
-
-function isEqual(obj1, obj2) {
-  return JSON.stringify(removeTimestamp(obj1)) === JSON.stringify(removeTimestamp(obj2));
-}
-
-function tryParseJSON(input) {
-  let result;
-  try {
-    result = JSON.parse(input);
-  } catch (error) {
-    return input;
-  }
-  return result;
-}
-
 // helper functions
 
-const caseInsensitiveSort = (a, b) => b.toString().localeCompare(a.toString(), undefined, { sensitivity: 'base' });
+const caseInsensitiveSort = (a, b) =>
+  b.toString().localeCompare(a.toString(), undefined, { sensitivity: 'base' });
 
 module.exports = {
   asyncHandler,
   promisify,
   sortArray,
-  removeTimestamp,
-  isEqual,
-  tryParseJSON,
 };

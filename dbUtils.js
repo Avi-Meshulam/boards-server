@@ -1,3 +1,5 @@
+const httpErrors = require('./httpErrors');
+
 function setReadonlyMiddleware(schema, ...readOnlyFields) {
   schema.pre('findByIdAndUpdate', async function(next) {
     validate.call(this);
@@ -31,6 +33,25 @@ function setReadonlyMiddleware(schema, ...readOnlyFields) {
   }
 }
 
+function insertArrayItem(arr, item) {
+  if (!Array.isArray(arr)) {
+    throw httpErrors.badRequest;
+  }
+  const newItem = arr.create(item);
+  arr.push(newItem);
+}
+
+function removeTimestamp(obj) {
+  const { createdAt, updatedAt, ...result } = obj;
+  return result;
+}
+
+function equals(obj1, obj2) {
+  return JSON.stringify(removeTimestamp(obj1)) === JSON.stringify(removeTimestamp(obj2));
+}
+
 module.exports = {
   setReadonlyMiddleware,
+  insertArrayItem,
+  equals,
 };

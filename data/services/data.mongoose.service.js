@@ -1,19 +1,20 @@
 const mongoose = require('mongoose');
 const IDataService = require('./IDataService');
 const httpErrors = require('../../httpErrors');
-const { isEqual, sortArray, tryParseJSON } = require('../../utils');
+const { sortArray } = require('../../utils');
+const { insertArrayItem, equals } = require('../../dbUtils');
 
-const DB_NAME = 'boards';
-const DB_URL = process.env.MONGODB_URI || `mongodb://localhost:27017/${DB_NAME}`;
 const QUERY_OPTIONS = ['sort', 'limit', 'skip'];
 
-// connect and configure db
-mongoose.connect(DB_URL, { useNewUrlParser: true });
-mongoose.connection.once('open', function() {
-  console.log(`Successfully connected to MongoDB[${DB_NAME}]`);
-});
-mongoose.connection.on('error', console.error.bind(console, 'connection error:'));
-mongoose.set('useFindAndModify', false);
+function connectDB(dbName) {
+  const DB_URL = process.env.MONGODB_URI || `mongodb://localhost:27017/${dbName}`;
+  mongoose.connect(DB_URL, { useNewUrlParser: true });
+  mongoose.connection.once('open', function() {
+    console.log(`Successfully connected to MongoDB[${dbName}]`);
+  });
+  mongoose.connection.on('error', console.error.bind(console, 'connection error:'));
+  mongoose.set('useFindAndModify', false);
+}
 
 class MongooseDataService extends IDataService {
   constructor(entityName) {
@@ -55,57 +56,31 @@ class MongooseDataService extends IDataService {
       throw httpErrors.badRequest;
     }
 
-    const insertArrayItem = (arr, item) => {
-      if (!arr) {
-        throw httpErrors.badRequest;
-      }
-      const newItem = arr.create(tryParseJSON(item));
-      arr.push(newItem);
-    };
-
-    let nInserted = 0;
-    const insertItem = item => {
-      const newItem = subDocument.create(tryParseJSON(item));
-      subDocument.push(newItem);
-      nInserted++;
-    };
-
     let newEntry = subDocument.create();
     Object.entries(data).forEach(([key, value]) => {
       if (Array.isArray(value)) {
         value.forEach(item => {
-          if (Array.isArray(newEntry[key])) {
-            insertArrayItem(newEntry[key], item);
-          } else {
-            insertItem(item);
-            newEntry = null;
-          }
+          insertArrayItem(newEntry[key], item);
         });
       } else {
-        if (!newEntry) {
-          throw httpErrors.badRequest;
-        }
         newEntry[key] = value;
       }
     });
 
-    if (newEntry) {
-      subDocument.push(newEntry);
-    }
-
+    subDocument.push(newEntry);
     await document.save();
 
-    return newEntry
-      ? await this.getSubDocument({
-          ...subDocumentInfo,
-          path: [...subDocumentInfo.path, { id: newEntry._id }],
-        })
-      : (await this.getSubDocument(subDocumentInfo)).slice(-nInserted);
+    // run a new query in order not to return fields
+    // with { select: false } (otherwise, could have returned subDocument)
+    return await this.getSubDocument({
+      ...subDocumentInfo,
+      path: [...subDocumentInfo.path, { id: newEntry._id }],
+    });
   }
 
   async update(filter, data) {
     const docs = await this.get(filter);
-    const modified = docs.filter(doc => !isEqual(doc._doc, { ...doc._doc, ...data }));
+    const modified = docs.filter(doc => !equals(doc._doc, { ...doc._doc, ...data }));
     if (modified.length === 0) {
       return {
         n: docs.length,
@@ -122,7 +97,7 @@ class MongooseDataService extends IDataService {
 
   async updateById(id, data) {
     const doc = await this.getById(id);
-    if (isEqual(doc._doc, { ...doc._doc, ...data })) {
+    if (equals(doc._doc, { ...doc._doc, ...data })) {
       return doc; // nothing to save
     } else {
       return await this._model.findByIdAndUpdate(id, data, { new: true }).exec();
@@ -135,7 +110,8 @@ class MongooseDataService extends IDataService {
     if (Array.isArray(subDocument)) {
       return await updateSubDocumentArray(document, subDocument, data);
     } else {
-      return await updateSingleSubDocument(document, subDocument, data);
+      await updateSingleSubDocument(document, subDocument, data);
+      return await this.getSubDocument(subDocumentInfo);
     }
   }
 
@@ -161,18 +137,18 @@ class MongooseDataService extends IDataService {
 // *** helper functions *** //
 
 async function updateSingleSubDocument(document, subDocument, data) {
-  if (isEqual(subDocument._doc, { ...subDocument._doc, ...data })) {
-    return subDocument; // nothing to save
+  if (equals(subDocument._doc, { ...subDocument._doc, ...data })) {
+    return subDocument; // nothing to update
   }
   subDocument.set(data);
   await document.save();
   return subDocument;
 }
 
-async function updateSubDocumentArray(document, subDocument, data) {
+async function updateSubDocumentArray(document, subDocumentArray, data) {
   let nModified = 0;
-  subDocument.forEach(item => {
-    if (!isEqual(item._doc, { ...item._doc, ...data })) {
+  subDocumentArray.forEach(item => {
+    if (!equals(item._doc, { ...item._doc, ...data })) {
       item.set(data);
       nModified++;
     }
@@ -181,7 +157,7 @@ async function updateSubDocumentArray(document, subDocument, data) {
     await document.save();
   }
   return {
-    n: subDocument.length,
+    n: subDocumentArray.length,
     nModified,
   };
 }
@@ -228,13 +204,15 @@ function applyPathToQuery(query, path = []) {
   if (path[1] && path[1].id) {
     query.and([{ [`${path[0]}._id`]: path[1].id }]);
   }
-  let fields = [];
+
+  const subDocumentNames = [];
+  // path is composed of subDocumentNames and id's alternately
   for (let index = 0; index < path.length; index += 2) {
-    fields.push(path[index]);
+    subDocumentNames.push(path[index]);
   }
   let expression = '';
-  for (let index = 0; index < fields.length; index++) {
-    expression += `${expression ? ' ' : ''}+${fields.slice(0, index + 1).join('.')}`;
+  for (let index = 0; index < subDocumentNames.length; index++) {
+    expression += `${expression ? ' ' : ''}+${subDocumentNames.slice(0, index + 1).join('.')}`;
   }
   query.select(expression);
 }
@@ -314,13 +292,8 @@ function validateRequest(method, subDocumentInfo, data) {
     case 'PUT':
       if (path[path.length - 1].id) {
         Object.values(data).forEach(value => {
-          if (typeof value === 'string') {
-            try {
-              value = JSON.parse(value);
-            } catch (error) {}
-            if (Array.isArray(value)) {
-              throw httpErrors.badRequest;
-            }
+          if (Array.isArray(value)) {
+            throw httpErrors.badRequest;
           }
         });
       }
@@ -330,4 +303,7 @@ function validateRequest(method, subDocumentInfo, data) {
   }
 }
 
-module.exports = MongooseDataService;
+module.exports = {
+  connectDB,
+  MongooseDataService,
+};

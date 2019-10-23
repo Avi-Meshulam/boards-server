@@ -12,7 +12,7 @@ const boardSchema = new Schema(
     address: String,
     latLng: { type: { lat: Number, lng: Number }, required: true },
     [CREATED_BY]: { type: String, required: true }, // userId (nick name)
-    image: [imageSchema],
+    images: [imageSchema],
     posts: { type: [postSchema], select: false },
   },
   { timestamps: true },

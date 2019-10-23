@@ -162,11 +162,18 @@ const setFilesData = (req, uploadMap) => {
   if (!req.files) {
     return;
   }
-  Object.entries(req.files).forEach(([fieldName, files]) => {
-    req.body[fieldName] = [];
-    files.forEach(file => {
-      req.body[fieldName].push({[uploadMap.get(fieldName)]: file.buffer});
-    });
+  Object.entries(req.files).forEach(([uploadName, files]) => {
+    const storageName = uploadMap.get(uploadName) || uploadName;
+    if (storageName !== uploadName) {
+      // uploadName represents an array
+      req.body[uploadName] = [];
+      files.forEach(file => {
+        req.body[uploadName].push({ [storageName]: file.buffer });
+      });
+    } else {
+      // in case of multiple files - take only the last one
+      req.body[uploadName] = files[files.length - 1].buffer;
+    }
   });
 };
 
