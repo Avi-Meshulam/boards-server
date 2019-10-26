@@ -56,7 +56,7 @@ class MongooseDataService extends IDataService {
     return result._doc;
   }
 
-  // insert data to a subDocument array OR many subDocument arrays
+  // insert data to a subDocument array
   async insertSubDocument(subDocumentInfo, data) {
     validateRequest('POST', subDocumentInfo, data);
 
@@ -332,7 +332,7 @@ function validateRequest(method, subDocumentInfo, data) {
       break;
     case 'PUT':
       if (path[path.length - 1].id) {
-        Object.values(data).forEach(value => {
+        Object.values(data).forEach(value => {                                                                                                             
           if (Array.isArray(value)) {
             throw httpErrors.badRequest;
           }

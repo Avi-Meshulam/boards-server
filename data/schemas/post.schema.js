@@ -7,7 +7,7 @@ const { Validate } = require('../../dbUtils');
 const USER_ID = 'userId';
 const IMAGES_COUNT_LIMIT = 4;
 
-const commnetSchema = new Schema(
+const commentSchema = new Schema(
   {
     [USER_ID]: { type: String, required: true, ref: User },
     content: String,
@@ -20,15 +20,16 @@ const commnetSchema = new Schema(
   { timestamps: true },
 );
 
-setReadonlyMiddleware(commnetSchema, USER_ID);
+setReadonlyMiddleware(commentSchema, USER_ID);
 
-commnetSchema.add({ comments: [commnetSchema] });
+commentSchema.add({ comments: [commentSchema] });
 
-commnetSchema
+commentSchema
   .path('comments')
-  .discriminator('Comment', new Schema({ comments: [commnetSchema] }));
+  .discriminator('Comment', new Schema({ comments: [commentSchema] }));
 
 const postSchema = commentSchema.clone();
+
 postSchema.add({ title: { type: String, required: true } });
 
 module.exports = postSchema;
