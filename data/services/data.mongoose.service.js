@@ -47,6 +47,7 @@ class MongooseDataService extends IDataService {
     const [, subDocument] = await getSubDocumentHelper(
       this._model,
       subDocumentInfo,
+      true,
     );
     return subDocument;
   }
@@ -209,9 +210,13 @@ async function removeSubDocumentArray(document, subDocument) {
   };
 }
 
-async function getSubDocumentHelper(model, { ownerId, path, filter, options }) {
+async function getSubDocumentHelper(
+  model,
+  { ownerId, path, filter, options },
+  isGet = false,
+) {
   const query = model.findById(ownerId);
-  applyPathToQuery(query, path);
+  applyPathToQuery(query, path, isGet);
   const document = await query.exec().catch(err => {
     throw httpErrors.badRequest;
   });
@@ -232,11 +237,11 @@ function applyOptionsToQuery(query, options = {}) {
   });
 }
 
-function applyPathToQuery(query, path = []) {
+function applyPathToQuery(query, path = [], isGet = false) {
   try {
     applyPathToQueryConditions(query, path);
     applyPathToQueryProjection(query, path);
-    applyPathToQueryPopulation(query, path);
+    applyPathToQueryPopulation(query, path, isGet);
   } catch (error) {
     throw httpErrors.badRequest;
   }
@@ -274,7 +279,11 @@ function applyPathToQueryProjection(query, path = []) {
   }
 }
 
-function applyPathToQueryPopulation(query, path = []) {
+function applyPathToQueryPopulation(query, path = [], isGet = false) {
+  if (!isGet) {
+    return;
+  }
+
   const requestedEntity = path[path.length - 1].id
     ? path[path.length - 2]
     : path[path.length - 1];
