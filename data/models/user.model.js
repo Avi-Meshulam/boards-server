@@ -21,14 +21,14 @@ const userSchema = new Schema(
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),
     },
     boards: {
-      type: [{ type: String, ref: Board }],
-      validate: Validate.uniqueArrayItem('boards') /*, autopopulate: true*/,
+      type: [{ type: String, ref: 'Board'/*, autopopulate: true*/ }],
+      validate: Validate.uniqueArrayItem('boards'),
     }, // id's of boards which the user is a member of
   },
   { timestamps: true, toJSON: { virtuals: true } },
 );
 
-// schema.plugin(require('mongoose-autopopulate'));
+// userSchema.plugin(require('mongoose-autopopulate'));
 
 userSchema.virtual('posts', {
   ref: 'Post',

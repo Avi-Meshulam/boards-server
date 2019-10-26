@@ -15,7 +15,7 @@ const boardSchema = new Schema(
     description: String,
     address: String,
     latLng: { type: { lat: Number, lng: Number }, required: true },
-    [CREATED_BY]: { type: String, required: true, ref: User }, // User._id
+    [CREATED_BY]: { type: String, required: true, ref: 'User' }, // User._id
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),

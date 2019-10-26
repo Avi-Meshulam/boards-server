@@ -9,13 +9,13 @@ const IMAGES_COUNT_LIMIT = 4;
 
 const commentSchema = new Schema(
   {
-    [USER_ID]: { type: String, required: true, ref: User },
+    [USER_ID]: { type: String, required: true, ref: 'User' },
     content: String,
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),
     },
-    likes: [{ type: String, ref: User }], // Id's of users who liked the post
+    likes: [{ type: String, ref: 'User' }], // Id's of users who liked the post
   },
   { timestamps: true },
 );
