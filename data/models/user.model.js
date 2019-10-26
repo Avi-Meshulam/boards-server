@@ -24,7 +24,6 @@ const userSchema = new Schema(
       type: [{ type: String, ref: Board }],
       validate: Validate.uniqueArrayItem('boards') /*, autopopulate: true*/,
     }, // id's of boards which the user is a member of
-    // posts: [{ type: Schema.Types.ObjectId, ref: Post }], //  id's of posts written by the user
   },
   { timestamps: true, toJSON: { virtuals: true } },
 );
@@ -44,20 +43,6 @@ userSchema.virtual('postsCount', {
   foreignField: 'userId',
   count: true, // only get the number of docs
 });
-
-// userSchema.virtual('boards', {
-//   ref: 'Board',
-//   localField: 'boards._id',
-//   foreignField: '_id',
-//   options: { sort: { name: 1 } },
-// });
-
-// userSchema.virtual('boardsCount', {
-//   ref: 'Board',
-//   localField: 'boards._id',
-//   foreignField: '_id',
-//   count: true // only get the number of docs
-// });
 
 userSchema.post('save', function(doc) {
   if (this.isModified('_id')) {

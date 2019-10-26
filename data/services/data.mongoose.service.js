@@ -232,6 +232,7 @@ function applyOptionsToQuery(query, options = {}) {
 
 function applyPathToQuery(query, path = []) {
   applyPathToQueryConditions(query, path);
+  applyPathToQueryPopulation(query, path);
   applyPathToQueryProjection(query, path);
 }
 
@@ -241,12 +242,29 @@ function applyPathToQueryConditions(query, path = []) {
   }
 }
 
+function applyPathToQueryPopulation(query, path = []) {
+  if(path[path.length - 1].id) {
+    return;
+  }
+  const requestedEntity = path[path.length - 1];
+  const schema = query.model.schema;
+  if (
+    Object.keys(schema.virtuals).includes(requestedEntity) ||
+    (schema.paths[requestedEntity] &&
+      schema.paths[requestedEntity].options &&
+      schema.paths[requestedEntity].options.ref)
+  ) {
+    query.populate(requestedEntity);
+  }
+}
+
 function applyPathToQueryProjection(query, path = []) {
   const subDocumentNames = [];
   // path is composed of subDocument names and id's alternately
   for (let index = 0; index < path.length; index += 2) {
     subDocumentNames.push(path[index]);
   }
+
   let expression = '';
   for (let index = 0; index < subDocumentNames.length; index++) {
     expression += `${expression ? ' ' : ''}+${subDocumentNames
@@ -332,7 +350,7 @@ function validateRequest(method, subDocumentInfo, data) {
       break;
     case 'PUT':
       if (path[path.length - 1].id) {
-        Object.values(data).forEach(value => {                                                                                                             
+        Object.values(data).forEach(value => {
           if (Array.isArray(value)) {
             throw httpErrors.badRequest;
           }
