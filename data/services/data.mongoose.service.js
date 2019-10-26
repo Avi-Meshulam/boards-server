@@ -2,17 +2,21 @@ const mongoose = require('mongoose');
 const IDataService = require('./IDataService');
 const httpErrors = require('../../httpErrors');
 const { sortArray } = require('../../utils');
-const { insertArrayItem, equals } = require('../../dbUtils');
+const { clearBuffers } = require('../../dbUtils');
 
 const QUERY_OPTIONS = ['sort', 'limit', 'skip'];
 
 function connectDB(dbName) {
-  const DB_URL = process.env.MONGODB_URI || `mongodb://localhost:27017/${dbName}`;
+  const DB_URL =
+    process.env.MONGODB_URI || `mongodb://localhost:27017/${dbName}`;
   mongoose.connect(DB_URL, { useNewUrlParser: true });
   mongoose.connection.once('open', function() {
     console.log(`Successfully connected to MongoDB[${dbName}]`);
   });
-  mongoose.connection.on('error', console.error.bind(console, 'connection error:'));
+  mongoose.connection.on(
+    'error',
+    console.error.bind(console, 'connection error:'),
+  );
   mongoose.set('useFindAndModify', false);
 }
 
@@ -23,7 +27,9 @@ class MongooseDataService extends IDataService {
   }
 
   isReady() {
-    return mongoose.connection.readyState === mongoose.ConnectionStates.connected;
+    return (
+      mongoose.connection.readyState === mongoose.ConnectionStates.connected
+    );
   }
 
   async get(filter, options) {
@@ -38,7 +44,10 @@ class MongooseDataService extends IDataService {
   }
 
   async getSubDocument(subDocumentInfo) {
-    const [, subDocument] = await getSubDocumentHelper(this._model, subDocumentInfo);
+    const [, subDocument] = await getSubDocumentHelper(
+      this._model,
+      subDocumentInfo,
+    );
     return subDocument;
   }
 
@@ -51,36 +60,49 @@ class MongooseDataService extends IDataService {
   async insertSubDocument(subDocumentInfo, data) {
     validateRequest('POST', subDocumentInfo, data);
 
-    let [document, subDocument] = await getSubDocumentHelper(this._model, subDocumentInfo);
+    let [document, subDocument] = await getSubDocumentHelper(
+      this._model,
+      subDocumentInfo,
+    );
+
     if (!Array.isArray(subDocument)) {
       throw httpErrors.badRequest;
     }
 
-    let newEntry = subDocument.create();
+    let newEntry;
+    if (subDocument.isMongooseDocumentArray) {
+      newEntry = subDocument.create();
+    }
+
     Object.entries(data).forEach(([key, value]) => {
       if (Array.isArray(value)) {
-        value.forEach(item => {
-          insertArrayItem(newEntry[key], item);
-        });
+        // value.forEach(item => {
+        //   insertArrayItem(newEntry[key], item);
+        // });
+        const newItems = newEntry ? newEntry[key].create(value) : value;
+        (newEntry || subDocument).push(...newItems);
       } else {
-        newEntry[key] = value;
+        if (newEntry) {
+          newEntry[key] = value;
+        } else {
+          subDocument.push(value);
+        }
       }
     });
 
-    subDocument.push(newEntry);
-    await document.save();
+    if (newEntry) {
+      subDocument.push(newEntry);
+    }
 
-    // run a new query in order not to return fields
-    // with { select: false } (otherwise, could have returned subDocument)
-    return await this.getSubDocument({
-      ...subDocumentInfo,
-      path: [...subDocumentInfo.path, { id: newEntry._id }],
-    });
+    await document.save();
+    return clearBuffers(newEntry || subDocument);
   }
 
   async update(filter, data) {
     const docs = await this.get(filter);
-    const modified = docs.filter(doc => !equals(doc._doc, { ...doc._doc, ...data }));
+    const modified = docs.filter(
+      doc => !equals(doc._doc, { ...doc._doc, ...data }),
+    );
     if (modified.length === 0) {
       return {
         n: docs.length,
@@ -100,13 +122,18 @@ class MongooseDataService extends IDataService {
     if (equals(doc._doc, { ...doc._doc, ...data })) {
       return doc; // nothing to save
     } else {
-      return await this._model.findByIdAndUpdate(id, data, { new: true }).exec();
+      return await this._model
+        .findByIdAndUpdate(id, data, { new: true })
+        .exec();
     }
   }
 
   async updateSubDocument(subDocumentInfo, data) {
     validateRequest('PUT', subDocumentInfo, data);
-    const [document, subDocument] = await getSubDocumentHelper(this._model, subDocumentInfo);
+    const [document, subDocument] = await getSubDocumentHelper(
+      this._model,
+      subDocumentInfo,
+    );
     if (Array.isArray(subDocument)) {
       return await updateSubDocumentArray(document, subDocument, data);
     } else {
@@ -116,7 +143,7 @@ class MongooseDataService extends IDataService {
   }
 
   async remove(filter) {
-    return await this._model.remove(filter).exec();
+    return await this._model.deleteMany(filter).exec();
   }
 
   async removeById(id) {
@@ -125,7 +152,10 @@ class MongooseDataService extends IDataService {
   }
 
   async removeSubDocument(subDocumentInfo) {
-    const [document, subDocument] = await getSubDocumentHelper(this._model, subDocumentInfo);
+    const [document, subDocument] = await getSubDocumentHelper(
+      this._model,
+      subDocumentInfo,
+    );
     if (Array.isArray(subDocument)) {
       return await removeSubDocumentArray(document, subDocument);
     } else {
@@ -142,7 +172,7 @@ async function updateSingleSubDocument(document, subDocument, data) {
   }
   subDocument.set(data);
   await document.save();
-  return subDocument;
+  return clearBuffers(subDocument);
 }
 
 async function updateSubDocumentArray(document, subDocumentArray, data) {
@@ -201,20 +231,31 @@ function applyOptionsToQuery(query, options = {}) {
 }
 
 function applyPathToQuery(query, path = []) {
+  applyPathToQueryConditions(query, path);
+  applyPathToQueryProjection(query, path);
+}
+
+function applyPathToQueryConditions(query, path = []) {
   if (path[1] && path[1].id) {
     query.and([{ [`${path[0]}._id`]: path[1].id }]);
   }
+}
 
+function applyPathToQueryProjection(query, path = []) {
   const subDocumentNames = [];
-  // path is composed of subDocumentNames and id's alternately
+  // path is composed of subDocument names and id's alternately
   for (let index = 0; index < path.length; index += 2) {
     subDocumentNames.push(path[index]);
   }
   let expression = '';
   for (let index = 0; index < subDocumentNames.length; index++) {
-    expression += `${expression ? ' ' : ''}+${subDocumentNames.slice(0, index + 1).join('.')}`;
+    expression += `${expression ? ' ' : ''}+${subDocumentNames
+      .slice(0, index + 1)
+      .join('.')}`;
   }
-  query.select(expression);
+  if (expression) {
+    query.select(expression);
+  }
 }
 
 function applyPathToDocument(document, path = []) {
@@ -301,6 +342,26 @@ function validateRequest(method, subDocumentInfo, data) {
     default:
       break;
   }
+}
+
+function insertArrayItem(arr, item) {
+  if (!Array.isArray(arr)) {
+    throw httpErrors.badRequest;
+  }
+  const newItem = arr.create(item);
+  arr.push(newItem);
+}
+
+function removeTimestamp(obj) {
+  const { createdAt, updatedAt, ...result } = obj;
+  return result;
+}
+
+function equals(obj1, obj2) {
+  return (
+    JSON.stringify(removeTimestamp(obj1)) ===
+    JSON.stringify(removeTimestamp(obj2))
+  );
 }
 
 module.exports = {

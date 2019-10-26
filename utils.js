@@ -8,7 +8,9 @@ const asyncHandler = fn => (req, res, next) => {
 const promisify = param => {
   const promisifyFunc = func => (...params) =>
     new Promise((resolve, reject) => {
-      func(...params, (err, data) => (err ? reject(err) : resolve(data || true)));
+      func(...params, (err, data) =>
+        err ? reject(err) : resolve(data || true),
+      );
     });
 
   const promisifyObj = obj =>

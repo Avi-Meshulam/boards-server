@@ -1,5 +1,3 @@
-const httpErrors = require('./httpErrors');
-
 function setReadonlyMiddleware(schema, ...readOnlyFields) {
   schema.pre('findByIdAndUpdate', async function(next) {
     validate.call(this);
@@ -33,25 +31,58 @@ function setReadonlyMiddleware(schema, ...readOnlyFields) {
   }
 }
 
-function insertArrayItem(arr, item) {
-  if (!Array.isArray(arr)) {
-    throw httpErrors.badRequest;
+function clearBuffers(obj) {
+  if (obj._doc) {
+    Object.entries(obj._doc).forEach(([key, value]) => {
+      if (value instanceof Buffer) {
+        value = undefined;
+      }
+      if (typeof value === 'object' || Array.isArray(value)) {
+        if (obj[key]) {
+          clearBuffers(obj[key]);
+        }
+      }
+    });
   }
-  const newItem = arr.create(item);
-  arr.push(newItem);
+  return obj;
 }
 
-function removeTimestamp(obj) {
-  const { createdAt, updatedAt, ...result } = obj;
-  return result;
-}
-
-function equals(obj1, obj2) {
-  return JSON.stringify(removeTimestamp(obj1)) === JSON.stringify(removeTimestamp(obj2));
-}
+const Validate = {
+  unique: function(fieldName, model) {
+    return {
+      validator: async function(value) {
+        if (!this.isNew) {
+          return true;
+        }
+        const count = await this.model(model)
+          .estimatedDocumentCount({ [fieldName]: value })
+          .catch(err => err);
+        return count === 0; // If `count` is not zero, "invalidate"
+      },
+      message: props => `${props.value} already exists.`,
+    };
+  },
+  uniqueArrayItem: function(fieldName) {
+    return {
+      validator: function(arr) {
+        return (
+          this[fieldName].filter(value => value === arr[arr.length - 1])
+            .length === 1
+        );
+      },
+      message: props => `${props.value[props.value.length - 1]} already exists.`,
+    };
+  },
+  maxCount: function(limit) {
+    return [
+      value => value.length <= limit,
+      `{PATH} count exceeds the limit of ${limit}`,
+    ];
+  },
+};
 
 module.exports = {
+  clearBuffers,
   setReadonlyMiddleware,
-  insertArrayItem,
-  equals,
+  Validate,
 };
