@@ -67,6 +67,13 @@ function sortNumbers(arr, field, isReverse = false) {
   }
 }
 
+function getArrayDuplicates(arr) {
+  return arr.reduce(function(acc, el, i, arr) {
+    if (arr.indexOf(el) !== i && acc.indexOf(el) < 0) acc.push(el);
+    return acc;
+  }, []);
+}
+
 // helper functions
 
 const caseInsensitiveSort = (a, b) =>
@@ -76,4 +83,5 @@ module.exports = {
   asyncHandler,
   promisify,
   sortArray,
+  getArrayDuplicates,
 };
