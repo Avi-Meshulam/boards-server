@@ -212,7 +212,9 @@ async function removeSubDocumentArray(document, subDocument) {
 async function getSubDocumentHelper(model, { ownerId, path, filter, options }) {
   const query = model.findById(ownerId);
   applyPathToQuery(query, path);
-  const document = await query.exec();
+  const document = await query.exec().catch(err => {
+    throw httpErrors.badRequest;
+  });
   let subDocument = applyPathToDocument(document, path);
   subDocument = applyFilterToArray(subDocument, filter);
   subDocument = applyOptionsToArray(subDocument, options);
@@ -231,30 +233,22 @@ function applyOptionsToQuery(query, options = {}) {
 }
 
 function applyPathToQuery(query, path = []) {
-  applyPathToQueryConditions(query, path);
-  applyPathToQueryPopulation(query, path);
-  applyPathToQueryProjection(query, path);
+  try {
+    applyPathToQueryConditions(query, path);
+    applyPathToQueryProjection(query, path);
+    applyPathToQueryPopulation(query, path);
+  } catch (error) {
+    throw httpErrors.badRequest;
+  }
 }
 
 function applyPathToQueryConditions(query, path = []) {
-  if (path[1] && path[1].id) {
-    query.and([{ [`${path[0]}._id`]: path[1].id }]);
-  }
-}
-
-function applyPathToQueryPopulation(query, path = []) {
-  if(path[path.length - 1].id) {
-    return;
-  }
-  const requestedEntity = path[path.length - 1];
-  const schema = query.model.schema;
   if (
-    Object.keys(schema.virtuals).includes(requestedEntity) ||
-    (schema.paths[requestedEntity] &&
-      schema.paths[requestedEntity].options &&
-      schema.paths[requestedEntity].options.ref)
+    path[1] &&
+    path[1].id &&
+    query.model.schema.paths[path[0]].$isMongooseDocumentArray
   ) {
-    query.populate(requestedEntity);
+    query.and([{ [`${path[0]}._id`]: path[1].id }]);
   }
 }
 
@@ -266,13 +260,40 @@ function applyPathToQueryProjection(query, path = []) {
   }
 
   let expression = '';
+  let schema = query.model.schema;
   for (let index = 0; index < subDocumentNames.length; index++) {
-    expression += `${expression ? ' ' : ''}+${subDocumentNames
-      .slice(0, index + 1)
-      .join('.')}`;
+    if (schema.paths[subDocumentNames[index]].$isMongooseDocumentArray) {
+      expression += `${expression ? ' ' : ''}+${subDocumentNames
+        .slice(0, index + 1)
+        .join('.')}`;
+    }
+    schema = schema.paths[subDocumentNames[index]].schema;
   }
   if (expression) {
     query.select(expression);
+  }
+}
+
+function applyPathToQueryPopulation(query, path = []) {
+  const requestedEntity = path[path.length - 1].id
+    ? path[path.length - 2]
+    : path[path.length - 1];
+  const schema = query.model.schema;
+  const schemaPath = schema.paths[requestedEntity];
+
+  if (!schemaPath) {
+    return;
+  }
+
+  if (
+    Object.keys(schema.virtuals).includes(requestedEntity) ||
+    (schemaPath && schemaPath.options && schemaPath.options.ref) ||
+    (schemaPath.$isMongooseArray &&
+      // !schemaPath.$isMongooseDocumentArray &&
+      schemaPath.options &&
+      schemaPath.options.type[0].ref)
+  ) {
+    query.populate(requestedEntity);
   }
 }
 
@@ -282,7 +303,11 @@ function applyPathToDocument(document, path = []) {
   }
   path.forEach(element => {
     if (element.id) {
-      document = document.id(element.id);
+      if (document.$isMongooseDocumentArray) {
+        document = document.id(element.id);
+      } /*if(document.$isMongooseArray) */ else {
+        document = document.find(value => value.id === element.id);
+      }
     } else {
       document = document[element];
     }
@@ -308,11 +333,12 @@ function applyOptionsToArray(arr, options = {}) {
           sortMongooseArray(arr, value);
           break;
         case 'skip':
-          arr = arr.slice(value);
-          // return arr.splice(value);
+          arr.splice(0, value);
+          // arr = arr.slice(value);
           break;
         case 'limit':
-          arr = arr.slice(0, value);
+          arr.splice(value);
+          // arr = arr.slice(0, value);
           break;
         default:
           break;
