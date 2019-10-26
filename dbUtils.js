@@ -1,3 +1,5 @@
+const { getArrayDuplicates } = require('./utils');
+
 function setReadonlyMiddleware(schema, ...readOnlyFields) {
   schema.pre('findByIdAndUpdate', async function(next) {
     validate.call(this);
@@ -66,11 +68,12 @@ const Validate = {
     return {
       validator: function(arr) {
         return (
-          this[fieldName].filter(value => value === arr[arr.length - 1])
-            .length === 1
+          this[fieldName].filter(value => arr.includes(value)).length === 1
         );
       },
-      message: props => `${props.value[props.value.length - 1]} already exists.`,
+      message: function(props) {
+        return `${getArrayDuplicates(props.value)} already exist(s).`;
+      },
     };
   },
   maxCount: function(limit) {
