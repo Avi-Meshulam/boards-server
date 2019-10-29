@@ -1,5 +1,4 @@
 const { Schema, model } = require('mongoose');
-const Board = require('./board.model');
 const imageSchema = require('../schemas/image.schema');
 const { Validate } = require('../../dbUtils');
 
@@ -15,20 +14,19 @@ const userSchema = new Schema(
       unique: true, // Sets an index. Not a validator!
       validate: Validate.unique('email', 'User'),
     },
-    avatar: imageSchema,
+    avatar: { type: imageSchema, default: () => ({}) },
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),
     },
+    // id's of boards which the user is a member of
     boards: {
-      type: [{ type: String, ref: 'Board'/*, autopopulate: true*/ }],
-      validate: Validate.uniqueArrayItem('boards'),
-    }, // id's of boards which the user is a member of
+      type: [{ type: String, ref: 'Board' }],
+      validate: Validate.uniqueArrayItem,
+    },
   },
   { timestamps: true, toJSON: { virtuals: true } },
 );
-
-// userSchema.plugin(require('mongoose-autopopulate'));
 
 userSchema.virtual('posts', {
   ref: 'Post',
@@ -53,5 +51,12 @@ userSchema.post('save', function(doc) {
 const User = model('User', userSchema);
 
 // User.createIndexes({ "email": 1 }, { unique: true });
+
+// Waits for model's indexes to finish
+User.on('index', function(err) {
+  if (err) {
+    throw new Error(err);
+  }
+});
 
 module.exports = User;

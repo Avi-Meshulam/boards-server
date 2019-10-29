@@ -3,11 +3,11 @@ const cors = require('cors');
 const express = require('express');
 const logger = require('morgan');
 const path = require('path');
-const {
-  connectDB,
-  MongooseDataService,
-} = require('./data/services/data.mongoose.service');
+const MongooseDataService = require('./data/services/data.mongoose.service');
+const { connectDB } = require('./dbUtils');
 const router = require('./routers/router.service');
+
+require('./prototypes');
 
 const DB_NAME = 'boards';
 
@@ -24,7 +24,7 @@ app.use(cors());
 
 // key: upload field name
 // value: storage field name
-// no value applies storage and upload names are equals
+// no value means storage and upload names are the same
 const uploadMap = new Map();
 uploadMap.set('images', 'image');
 uploadMap.set('image');
@@ -43,7 +43,6 @@ app.use((req, res, next) => {
 // routes
 app.use('/api/boards', router(uploadMap, new MongooseDataService('board')));
 app.use('/api/users', router(uploadMap, new MongooseDataService('user')));
-
 
 app.use((req, res, next) => {
   let err = new Error('404 Not Found');

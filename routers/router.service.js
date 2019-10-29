@@ -2,7 +2,6 @@ const multer = require('multer');
 const Router = require('express').Router;
 const DataService = require('../data/services/IDataService');
 const asyncHandler = require('../utils').asyncHandler;
-const httpErrors = require('../httpErrors');
 
 const UPLOAD_MAX_COUNT = 8;
 const upload = multer({ storage: multer.memoryStorage() });
@@ -23,12 +22,6 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
         }
       }),
     )
-
-    // ALL /:id/*
-    .all('/:id/*', (req, res, next) => {
-      setSubDocumentInfo(req);
-      next();
-    })
 
     // GET
     .get(
@@ -52,7 +45,12 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
     .get(
       '/:id/*',
       asyncHandler(async (req, res, next) => {
-        const result = await dataService.getSubDocument(req.subDocumentInfo);
+        const result = await dataService.getSubDocument(
+          req.params.id,
+          pathHierarchy(req.path),
+          req.query,
+          req.headers.options,
+        );
         res.json(result);
       }),
     )
@@ -62,7 +60,7 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
       '*',
       upload.fields(uploadFields, UPLOAD_MAX_COUNT),
       asyncHandler(async (req, res, next) => {
-        setFilesData(req, uploadMap);
+        setRequestUploadData(req, uploadMap);
         next();
       }),
     )
@@ -80,11 +78,11 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
     .post(
       '/:id/*',
       asyncHandler(async (req, res, next) => {
-        const path = req.subDocumentInfo.path;
-        if (path[path.length - 1].id) {
-          next(httpErrors.badRequest);
-        }
-        const result = await dataService.insertSubDocument(req.subDocumentInfo, req.body);
+        const result = await dataService.insertSubDocument(
+          req.params.id,
+          pathHierarchy(req.path),
+          req.body,
+        );
         res.json(result);
       }),
     )
@@ -94,7 +92,7 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
       '*',
       upload.fields(uploadFields, UPLOAD_MAX_COUNT),
       asyncHandler(async (req, res, next) => {
-        setFilesData(req, uploadMap);
+        setRequestUploadData(req, uploadMap);
         next();
       }),
     )
@@ -121,7 +119,12 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
     .put(
       '/:id/*',
       asyncHandler(async (req, res, next) => {
-        const result = await dataService.updateSubDocument(req.subDocumentInfo, req.body);
+        const result = await dataService.updateSubDocument(
+          req.params.id,
+          pathHierarchy(req.path),
+          req.query,
+          req.body,
+        );
         res.json(result);
       }),
     )
@@ -148,7 +151,12 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
     .delete(
       '/:id/*',
       asyncHandler(async (req, res, next) => {
-        const result = await dataService.removeSubDocument(req.subDocumentInfo);
+        const result = await dataService.removeSubDocument(
+          req.params.id,
+          pathHierarchy(req.path),
+          req.query,
+          req.body,
+        );
         res.json(result);
       }),
     );
@@ -158,7 +166,13 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
 
 // *** helper functions *** //
 
-const setFilesData = (req, uploadMap) => {
+const pathHierarchy = path =>
+  path
+    .substr(1)
+    .split('/')
+    .slice(1);
+
+const setRequestUploadData = (req, uploadMap) => {
   if (!req.files) {
     return;
   }
@@ -175,25 +189,6 @@ const setFilesData = (req, uploadMap) => {
       req.body[uploadName] = files[files.length - 1].buffer;
     }
   });
-};
-
-const setSubDocumentInfo = req => {
-  const urlPath = req.path.substr(1).split('/');
-  const path = [];
-  for (let index = 1; index < urlPath.length; index++) {
-    if (index % 2 === 0) {
-      path.push({ id: urlPath[index] });
-    } else {
-      path.push(urlPath[index]);
-    }
-  }
-  req.url = `/${req.params.id}/${urlPath[1]}`;
-  req.subDocumentInfo = {
-    ownerId: req.params.id,
-    path,
-    filter: req.query,
-    options: req.headers.options && JSON.parse(req.headers.options),
-  };
 };
 
 module.exports = router;

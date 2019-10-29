@@ -67,9 +67,11 @@ function sortNumbers(arr, field, isReverse = false) {
   }
 }
 
-function getArrayDuplicates(arr) {
+function getDuplicates(arr) {
   return arr.reduce(function(acc, el, i, arr) {
-    if (arr.indexOf(el) !== i && acc.indexOf(el) < 0) acc.push(el);
+    if (arr.indexOf(el) !== i && acc.indexOf(el) < 0) {
+      acc.push(el);
+    }
     return acc;
   }, []);
 }
@@ -83,5 +85,5 @@ module.exports = {
   asyncHandler,
   promisify,
   sortArray,
-  getArrayDuplicates,
+  getDuplicates,
 };

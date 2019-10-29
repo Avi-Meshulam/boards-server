@@ -1,4 +1,19 @@
-const { getArrayDuplicates } = require('./utils');
+const mongoose = require('mongoose');
+const { getDuplicates } = require('./utils');
+
+function connectDB(dbName) {
+  const DB_URL =
+    process.env.MONGODB_URI || `mongodb://localhost:27017/${dbName}`;
+  mongoose.connect(DB_URL, { useNewUrlParser: true });
+  mongoose.connection.once('open', function() {
+    console.log(`Successfully connected to MongoDB[${dbName}]`);
+  });
+  mongoose.connection.on(
+    'error',
+    console.error.bind(console, 'connection error:'),
+  );
+  mongoose.set('useFindAndModify', false);
+}
 
 function setReadonlyMiddleware(schema, ...readOnlyFields) {
   schema.pre('findByIdAndUpdate', async function(next) {
@@ -37,7 +52,7 @@ function clearBuffers(obj) {
   if (obj._doc) {
     Object.entries(obj._doc).forEach(([key, value]) => {
       if (value instanceof Buffer) {
-        value = undefined;
+        obj[key] = undefined;
       }
       if (typeof value === 'object' || Array.isArray(value)) {
         if (obj[key]) {
@@ -64,15 +79,19 @@ const Validate = {
       message: props => `${props.value} already exists.`,
     };
   },
-  uniqueArrayItem: function(fieldName) {
+  get uniqueArrayItem() {
+    let duplicates;
     return {
       validator: function(arr) {
-        return (
-          this[fieldName].filter(value => arr.includes(value)).length === 1
-        );
+        // return !arr.some(
+        //   (value, index, array) => array.indexOf(value) != index,
+        // );
+        duplicates = getDuplicates(arr);
+        return duplicates.length === 0;
       },
       message: function(props) {
-        return `${getArrayDuplicates(props.value)} already exist(s).`;
+        // return `${getDuplicates(props.value)} already exist(s).`;
+        return `${duplicates} already exist(s).`;
       },
     };
   },
@@ -85,6 +104,7 @@ const Validate = {
 };
 
 module.exports = {
+  connectDB,
   clearBuffers,
   setReadonlyMiddleware,
   Validate,

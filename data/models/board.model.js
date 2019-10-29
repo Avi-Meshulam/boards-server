@@ -1,5 +1,4 @@
 const { model, Schema } = require('mongoose');
-const User = require('./user.model');
 const imageSchema = require('../schemas/image.schema');
 const postSchema = require('../schemas/post.schema');
 const { setReadonlyMiddleware } = require('../../dbUtils');
@@ -11,11 +10,11 @@ const IMAGES_COUNT_LIMIT = 4;
 const boardSchema = new Schema(
   {
     _id: String, // URI of the board
-    name: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
     description: String,
     address: String,
     latLng: { type: { lat: Number, lng: Number }, required: true },
-    [CREATED_BY]: { type: String, required: true, ref: 'User' }, // User._id
+    [CREATED_BY]: { type: String, required: true, ref: 'User' },
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),
@@ -36,7 +35,7 @@ boardSchema.virtual('membersCount', {
   ref: 'User',
   localField: '_id',
   foreignField: 'boards',
-  count: true // only get the number of docs
+  count: true, // only get the number of docs
 });
 
 setReadonlyMiddleware(boardSchema, CREATED_BY);
