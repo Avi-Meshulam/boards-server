@@ -7,9 +7,9 @@ class DocUtils {
       const segment = pathHierarchy[index];
       if (doc.isMongooseDocumentArray) {
         doc = doc.id(segment);
-      } else if (doc[segment]) {
-        doc = doc[segment];
-      // } else if (doc.isMongooseArray) {
+      } else if (segment in doc) {
+        doc = doc[segment] || [];
+        // } else if (doc.isMongooseArray) {
       } else if (Array.isArray(doc)) {
         break;
       } else {
@@ -30,6 +30,9 @@ class DocUtils {
     }
 
     Object.entries(data).forEach(([key, value]) => {
+      if (!doc.isMongooseDocumentArray && key !== doc.$path()) {
+        return; // move next
+      }
       if (Array.isArray(value)) {
         const newItems = newEntry ? newEntry[key].create(value) : value;
         (newEntry || doc).push(...newItems);
@@ -48,23 +51,44 @@ class DocUtils {
   }
 
   static update(doc = {}, filter = {}, data = {}, targetElement = undefined) {
-    if (doc.isMongooseArray) {
-      if (Object.keys(filter).length > 0) {
-        return doc.updateIf(item =>
+    if (doc.isMongooseDocumentArray) {
+      return (doc || doc._doc).updateIf(
+        item =>
           Object.entries(filter).every(
-            ([key, value]) => (item[key] || item) === value,
-            data,
-            doc.isMongooseDocumentArray ? DocUtils.equals : undefined,
+            ([key, value]) => (item[key] || item).toString() === value,
           ),
-        );
-      }
+        data,
+        DocUtils.isUpdateRequired,
+        DocUtils.merge,
+      );
+
       // no filter
-      else if (targetElement) {
-        return doc.updateIf(item => item === targetElement, Object.values(data)[0]);
-      } else {
-        return doc.updateIf(() => true, Object.values(data)[0]);
-      }
+      // if (targetElement) {
+      //   return doc.updateIf(
+      //     item => item === targetElement,
+      //     Object.values(data)[0],
+      //   );
+      // } else {
+      //   return doc.updateIf(() => true, Object.values(data)[0]);
+      // }
     }
+    // if (doc.isMongooseArray) {
+    //   if (Object.keys(filter).length > 0) {
+    //     return doc.updateIf(item =>
+    //       Object.entries(filter).every(
+    //         ([key, value]) => (item[key] || item).toString() === value,
+    //         data,
+    //         doc.isMongooseDocumentArray ? DocUtils.equals : undefined,
+    //       ),
+    //     );
+    //   }
+    //   // no filter
+    //   else if (targetElement) {
+    //     return doc.updateIf(item => item === targetElement, Object.values(data)[0]);
+    //   } else {
+    //     return doc.updateIf(() => true, Object.values(data)[0]);
+    //   }
+    // }
 
     if (doc.$isDocumentArrayElement) {
       if (targetElement) {
@@ -83,7 +107,7 @@ class DocUtils {
       if (Object.keys(filter).length > 0) {
         return doc.removeIf(item =>
           Object.entries(filter).every(
-            ([key, value]) => (item[key] || item) === value,
+            ([key, value]) => (item[key] || item).toString() === value,
           ),
         );
       }
@@ -117,7 +141,7 @@ class DocUtils {
     if (doc.isMongooseArray && Object.keys(filter).length > 0) {
       doc.removeIf(item =>
         Object.entries(filter).every(
-          ([key, value]) => (item[key] || item) !== value,
+          ([key, value]) => (item[key] || item).toString() !== value,
         ),
       );
     }
@@ -164,16 +188,36 @@ class DocUtils {
     }
   }
 
-  static removeTimestamp(doc) {
-    const { createdAt, updatedAt, ...result } = doc;
-    return result;
+  // static removeTimestamp(doc) {
+  //   const { createdAt, updatedAt, ...result } = doc;
+  //   return result;
+  // }
+
+  // static equals(doc1, doc2) {
+  //   return (
+  //     JSON.stringify(DocUtils.removeTimestamp(doc1)) ===
+  //     JSON.stringify(DocUtils.removeTimestamp(doc2))
+  //   );
+  // }
+
+  // static equals(doc1, doc2) {
+  //   return (
+  //     JSON.stringify(doc1._doc || doc1) === JSON.stringify(doc2._doc || doc2)
+  //   );
+  // }
+
+  static isUpdateRequired(doc, data) {
+    return (
+      JSON.stringify(doc._doc) === JSON.stringify({ ...doc._doc, ...data })
+    );
   }
 
-  static equals(doc1, doc2) {
-    return (
-      JSON.stringify(removeTimestamp(doc1)) ===
-      JSON.stringify(removeTimestamp(doc2))
-    );
+  static assign(doc, data) {
+    doc._doc = { ...doc._doc, ...data };
+  }
+
+  static merge(doc, data) {
+    return { ...doc._doc, ...data };
   }
 }
 

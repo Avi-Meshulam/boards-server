@@ -1,5 +1,4 @@
 const { Schema } = require('mongoose');
-const User = require('../models/user.model');
 const imageSchema = require('./image.schema');
 const { setReadonlyMiddleware } = require('../../dbUtils');
 const { Validate } = require('../../dbUtils');

@@ -13,7 +13,8 @@ Array.prototype.removeIf = function(predicate) {
 Array.prototype.updateIf = function(
   predicate,
   data,
-  compare = (x, y) => x === y,
+  equals = (x, y) => x === y,
+  projection = (doc, data) => data,
 ) {
   let nFound = 0;
   let nModified = 0;
@@ -21,8 +22,8 @@ Array.prototype.updateIf = function(
   while (index--) {
     if (predicate(this[index], index)) {
       nFound++;
-      if (!compare(this[index], data)) {
-        this[index] = data;
+      if (!equals(this[index], data)) {
+        this[index] = projection(this[index], data);
         nModified++;
       }
     }

@@ -41,7 +41,7 @@ function setReadonlyMiddleware(schema, ...readOnlyFields) {
     const current = doc || (await this.model.findOne(this.getQuery()));
     const update = this.getUpdate();
     readOnlyFields.forEach(field => {
-      if (current[field] !== update[field]) {
+      if (update[field] && current[field] !== update[field]) {
         this.error(new Error(`field ${field} is read-only`));
       }
     });
@@ -74,7 +74,7 @@ const Validate = {
         const count = await this.model(model)
           .estimatedDocumentCount({ [fieldName]: value })
           .catch(err => err);
-        return count === 0; // If `count` is not zero, "invalidate"
+        return count <= 1; // If `count` is not zero, "invalidate"
       },
       message: props => `${props.value} already exists.`,
     };
@@ -83,14 +83,13 @@ const Validate = {
     let duplicates;
     return {
       validator: function(arr) {
-        // return !arr.some(
-        //   (value, index, array) => array.indexOf(value) != index,
-        // );
+        if(arr.length <= 1) {
+          return true;
+        }
         duplicates = getDuplicates(arr);
         return duplicates.length === 0;
       },
       message: function(props) {
-        // return `${getDuplicates(props.value)} already exist(s).`;
         return `${duplicates} already exist(s).`;
       },
     };

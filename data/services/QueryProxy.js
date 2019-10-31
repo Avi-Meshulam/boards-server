@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+
 const QUERY_OPTIONS = ['sort', 'skip', 'limit'];
 
 class QueryProxy {
@@ -80,13 +81,23 @@ class QueryProxy {
     targetElement = this.targetElement,
   ) {
     const targetArrayOptions = targetArray.options || {};
-    if (targetArrayOptions.ref) {
+    if (
+      targetArrayOptions.ref ||
+      (targetElement && (targetArrayOptions.type || []).some(t => t.ref))
+    ) {
       this.population = targetArray.path;
-      if (targetElement) {
-        this._query.populate(targetArray.path);
-      } else {
-        this._query.populate({ path: targetArray.path, select: '_id, name' });
-      }
+      const { ref, foreignField } = this._query.schema.virtuals[
+        targetArray.path
+      ].options;
+      const schemaPath = this._query.model.model(ref).schema.paths[
+        foreignField.split('.')[0]
+      ];
+      this._query.populate({
+        path: targetArray.path,
+        select: schemaPath.$isMongooseDocumentArray
+          ? `${targetArray.path}.$`
+          : '',
+      });
     }
   }
 
@@ -104,6 +115,9 @@ class QueryProxy {
         if (schemaPath.schema) {
           collectionHierarchy.push(schemaPath.path);
           targetSchema = schemaPath.schema;
+        } else if (schemaPath.instance === 'Buffer') {
+          collectionHierarchy.push(schemaPath.path);
+          break;
         } else {
           if (schemaPath.$isMongooseArray) {
             targetArray = schemaPath;

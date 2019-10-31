@@ -18,14 +18,11 @@ class MongooseDataService extends IDataService {
   }
 
   async get(filter, options) {
-    const queryProxy = new QueryProxy(this._model.find(filter));
-    queryProxy.options = options;
-    return await queryProxy.exec();
+    return await this._model.find(filter, options).exec();
   }
 
   async getById(id) {
-    const query = this._model.findById(id);
-    return await query.exec();
+    return await this._model.findById(id).exec();
   }
 
   async getSubDocument(ownerId, pathHierarchy, filter, options) {
@@ -59,24 +56,15 @@ class MongooseDataService extends IDataService {
   }
 
   async update(filter, data) {
-    const docs = await this.get(filter);
-    const docsToModify = docs.filter(
-      doc => !equals(doc._doc, { ...doc._doc, ...data }),
-    );
-    let nModified = 0;
-    if (docsToModify.length > 0) {
-      filter = { ...filter, _id: { $in: docsToModify.map(doc => doc._id) } };
-      const result = await this._model.updateMany(filter, data).exec();
-      nModified = result.nModified;
-    }
-    return {
-      n: docs.length,
-      nModified,
-    };
+    return await this._model
+      .updateMany(filter, data, { timestamps: false })
+      .exec();
   }
 
   async updateById(id, data) {
-    return await this._model.findByIdAndUpdate(id, data, { new: true }).exec();
+    return await this._model
+      .findByIdAndUpdate(id, data, { timestamps: false, new: true })
+      .exec();
   }
 
   async updateSubDocument(ownerId, pathHierarchy, filter, data) {
@@ -87,7 +75,7 @@ class MongooseDataService extends IDataService {
     );
 
     const result = DocUtils.update(subDocument, filter, data, targetElement);
-    if(subDocument.isMongooseArray) {
+    if (subDocument.isMongooseArray) {
       document.markModified(subDocument.$path());
     }
     await document.save();
@@ -124,14 +112,19 @@ async function getSubDocumentHelper(
   pathHierarchy,
   isGet = false,
 ) {
-  const queryProxy = new QueryProxy(model.findById(ownerId), pathHierarchy, isGet);
-  const document = await queryProxy.exec().catch(() => {
-    throw httpErrors.badRequest;
+  const queryProxy = new QueryProxy(
+    model.findById(ownerId),
+    pathHierarchy,
+    isGet,
+  );
+  const document = await queryProxy.exec().catch((err) => {
+    console.error(err);
+    // throw httpErrors.badRequest;
   });
-  const subDocument = DocUtils.extract(document, pathHierarchy);
-  if (!subDocument) {
-    throw new Error('Object not found');
+  if (!document) {
+    return [, ,];
   }
+  const subDocument = DocUtils.extract(document, pathHierarchy);
   return [document, subDocument, queryProxy.targetElement];
 }
 

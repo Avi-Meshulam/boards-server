@@ -1,6 +1,6 @@
 const { Schema, model } = require('mongoose');
-const imageSchema = require('../schemas/image.schema');
 const { Validate } = require('../../dbUtils');
+const imageSchema = require('../schemas/image.schema');
 
 const IMAGES_COUNT_LIMIT = 4;
 
@@ -14,7 +14,7 @@ const userSchema = new Schema(
       unique: true, // Sets an index. Not a validator!
       validate: Validate.unique('email', 'User'),
     },
-    avatar: { type: imageSchema, default: () => ({}) },
+    avatar: imageSchema,
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),
@@ -25,20 +25,24 @@ const userSchema = new Schema(
       validate: Validate.uniqueArrayItem,
     },
   },
-  { timestamps: true, toJSON: { virtuals: true } },
+  {
+    timestamps: true,
+    toObject: { virtuals: true },
+    toJSON: { virtuals: true },
+  },
 );
 
 userSchema.virtual('posts', {
-  ref: 'Post',
+  ref: 'Board',
   localField: '_id',
-  foreignField: 'userId',
-  options: { sort: { createdAt: -1 } },
+  foreignField: 'posts.userId',
+  options: { sort: { createdAt: 1 } },
 });
 
 userSchema.virtual('postsCount', {
-  ref: 'Post',
+  ref: 'Board',
   localField: '_id',
-  foreignField: 'userId',
+  foreignField: 'posts.userId',
   count: true, // only get the number of docs
 });
 
@@ -49,8 +53,6 @@ userSchema.post('save', function(doc) {
 });
 
 const User = model('User', userSchema);
-
-// User.createIndexes({ "email": 1 }, { unique: true });
 
 // Waits for model's indexes to finish
 User.on('index', function(err) {
