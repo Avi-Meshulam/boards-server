@@ -14,7 +14,7 @@ Array.prototype.updateIf = function(
   predicate,
   data,
   equals = (x, y) => x === y,
-  projection = (doc, data) => data,
+  project = (doc, data) => data,
 ) {
   let nFound = 0;
   let nModified = 0;
@@ -23,7 +23,7 @@ Array.prototype.updateIf = function(
     if (predicate(this[index], index)) {
       nFound++;
       if (!equals(this[index], data)) {
-        this[index] = projection(this[index], data);
+        this[index] = project(this[index], data);
         nModified++;
       }
     }

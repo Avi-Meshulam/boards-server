@@ -6,7 +6,7 @@ class DocUtils {
     for (let index = 0; index < pathHierarchy.length; index++) {
       const segment = pathHierarchy[index];
       if (doc.isMongooseDocumentArray) {
-        doc = doc.id(segment);
+        doc = doc.id(segment) || {};
       } else if (segment in doc) {
         doc = doc[segment] || [];
         // } else if (doc.isMongooseArray) {
@@ -52,86 +52,86 @@ class DocUtils {
 
   static update(doc = {}, filter = {}, data = {}, targetElement = undefined) {
     if (doc.isMongooseDocumentArray) {
-      return (doc || doc._doc).updateIf(
+      return doc.updateIf(
         item =>
           Object.entries(filter).every(
-            ([key, value]) => (item[key] || item).toString() === value,
+            ([key, value]) => item[key].toString() === value,
           ),
         data,
-        DocUtils.isUpdateRequired,
+        DocUtils.equals,
         DocUtils.merge,
       );
-
-      // no filter
-      // if (targetElement) {
-      //   return doc.updateIf(
-      //     item => item === targetElement,
-      //     Object.values(data)[0],
-      //   );
-      // } else {
-      //   return doc.updateIf(() => true, Object.values(data)[0]);
-      // }
     }
-    // if (doc.isMongooseArray) {
-    //   if (Object.keys(filter).length > 0) {
-    //     return doc.updateIf(item =>
-    //       Object.entries(filter).every(
-    //         ([key, value]) => (item[key] || item).toString() === value,
-    //         data,
-    //         doc.isMongooseDocumentArray ? DocUtils.equals : undefined,
-    //       ),
-    //     );
-    //   }
-    //   // no filter
-    //   else if (targetElement) {
-    //     return doc.updateIf(item => item === targetElement, Object.values(data)[0]);
-    //   } else {
-    //     return doc.updateIf(() => true, Object.values(data)[0]);
-    //   }
-    // }
 
-    if (doc.$isDocumentArrayElement) {
-      if (targetElement) {
-        doc[targetElement] = Object.values(data)[0];
-      } else {
+    if (doc.$isDocumentArrayElement || doc.$isSingleNested) {
+      if (
+        Object.entries(filter).every(
+          ([key, value]) => doc[key].toString() === value,
+        )
+      ) {
         doc.set(data);
+        return true;
+      } else {
+        return false;
       }
-      return true;
+    }
+
+    if (doc.isMongooseArray) {
+      if (!data[doc.$path()] || Array.isArray(data[doc.$path()])) {
+        throw httpErrors.badRequest;
+      }
+      if (targetElement) {
+        doc[targetElement] = data[doc.$path()];
+        return true;
+      } else {
+        return doc.updateIf(
+          item =>
+            Object.entries(filter).every(
+              ([key, value]) => item.toString() === value,
+            ),
+          data[doc.$path()],
+        );
+      }
     }
 
     throw httpErrors.badRequest;
   }
 
   static remove(doc = {}, filter = {}, targetElement = undefined) {
-    if (doc.isMongooseArray) {
-      if (Object.keys(filter).length > 0) {
-        return doc.removeIf(item =>
-          Object.entries(filter).every(
-            ([key, value]) => (item[key] || item).toString() === value,
-          ),
-        );
-      }
-      // no filter
-      else if (targetElement) {
-        doc.splice(doc.indexOf(targetElement), 1);
+    if (doc.isMongooseDocumentArray) {
+      return doc.removeIf(item =>
+        Object.entries(filter).every(
+          ([key, value]) => item[key].toString() === value,
+        ),
+      );
+    }
+
+    if (doc.$isDocumentArrayElement || doc.$isSingleNested) {
+      if (
+        Object.entries(filter).every(
+          ([key, value]) => doc[key].toString() === value,
+        )
+      ) {
+        doc.remove();
         return true;
       } else {
-        const deletedCount = doc.length;
-        while (doc.length > 0) {
-          doc.pop();
-        }
-        return { deletedCount };
+        return false;
       }
     }
 
-    if (doc.$isDocumentArrayElement) {
+    if (doc.isMongooseArray) {
       if (targetElement) {
-        doc[targetElement] = undefined;
-        // delete doc[targetElement];
+        if (doc.splice(doc.indexOf(targetElement), 1).length === 0) {
+          return false;
+        }
+        return true;
       } else {
-        doc.remove();
+        return doc.removeIf(item =>
+          Object.entries(filter).every(
+            ([key, value]) => item.toString() === value,
+          ),
+        );
       }
-      return true;
     }
 
     throw httpErrors.badRequest;
@@ -188,32 +188,12 @@ class DocUtils {
     }
   }
 
-  // static removeTimestamp(doc) {
-  //   const { createdAt, updatedAt, ...result } = doc;
-  //   return result;
-  // }
-
-  // static equals(doc1, doc2) {
-  //   return (
-  //     JSON.stringify(DocUtils.removeTimestamp(doc1)) ===
-  //     JSON.stringify(DocUtils.removeTimestamp(doc2))
-  //   );
-  // }
-
-  // static equals(doc1, doc2) {
-  //   return (
-  //     JSON.stringify(doc1._doc || doc1) === JSON.stringify(doc2._doc || doc2)
-  //   );
-  // }
-
-  static isUpdateRequired(doc, data) {
-    return (
-      JSON.stringify(doc._doc) === JSON.stringify({ ...doc._doc, ...data })
-    );
-  }
-
-  static assign(doc, data) {
-    doc._doc = { ...doc._doc, ...data };
+  static equals(doc, data) {
+    const keys = Object.keys(doc._doc);
+    if (Object.keys(data).some(key => !keys.includes(key))) {
+      return false;
+    }
+    return JSON.stringify(doc._doc) == JSON.stringify({ ...doc._doc, ...data });
   }
 
   static merge(doc, data) {

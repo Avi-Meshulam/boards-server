@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const DocUtils = require('./DocUtils');
 const IDataService = require('./IDataService');
 const QueryProxy = require('./QueryProxy');
-const httpErrors = require('../../httpErrors');
 const { clearBuffers } = require('../../dbUtils');
 
 class MongooseDataService extends IDataService {
@@ -26,14 +25,18 @@ class MongooseDataService extends IDataService {
   }
 
   async getSubDocument(ownerId, pathHierarchy, filter, options) {
-    const [, subDocument] = await getSubDocumentHelper(
+    let [, subDocument, targetElement] = await getSubDocumentHelper(
       this._model,
       ownerId,
       pathHierarchy,
       true,
     );
-    DocUtils.filter(subDocument, filter);
-    DocUtils.applyOptions(subDocument, options);
+    if (targetElement) {  // an array item
+      subDocument = subDocument.find(item => item._id === targetElement);
+    } else {
+      DocUtils.filter(subDocument, filter);
+      DocUtils.applyOptions(subDocument, options);
+    }
     return subDocument;
   }
 
@@ -117,7 +120,7 @@ async function getSubDocumentHelper(
     pathHierarchy,
     isGet,
   );
-  const document = await queryProxy.exec().catch((err) => {
+  const document = await queryProxy.exec().catch(err => {
     console.error(err);
     // throw httpErrors.badRequest;
   });

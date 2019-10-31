@@ -86,12 +86,15 @@ class QueryProxy {
       (targetElement && (targetArrayOptions.type || []).some(t => t.ref))
     ) {
       this.population = targetArray.path;
-      const { ref, foreignField } = this._query.schema.virtuals[
-        targetArray.path
-      ].options;
-      const schemaPath = this._query.model.model(ref).schema.paths[
-        foreignField.split('.')[0]
-      ];
+      let schemaPath = {};
+      if (this._query.schema.virtuals[targetArray.path]) {
+        const { ref, foreignField } = this._query.schema.virtuals[
+          targetArray.path
+        ].options;
+        schemaPath = this._query.model.model(ref).schema.paths[
+          foreignField.split('.')[0]
+        ];
+      }
       this._query.populate({
         path: targetArray.path,
         select: schemaPath.$isMongooseDocumentArray
