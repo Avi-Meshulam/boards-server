@@ -29,6 +29,12 @@ const uploadMap = new Map();
 uploadMap.set('images', 'image');
 uploadMap.set('image');
 
+uploadMap.forEach((value, key) => {
+  if (!value) {
+    uploadMap.set(key, key);
+  }
+});
+
 // static routes
 app.use(express.static(path.join(__dirname, 'public')));
 

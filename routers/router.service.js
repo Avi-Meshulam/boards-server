@@ -51,7 +51,11 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
           req.query,
           req.headers.options,
         );
-        res.json(result);
+        if ([...uploadMap.values()].includes(req.params[0].split('/').pop())) {
+          res.send(new Buffer.from(result, 'binary'));
+        } else {
+          res.json(result);
+        }
       }),
     )
 

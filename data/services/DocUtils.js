@@ -34,8 +34,14 @@ class DocUtils {
         return; // move next
       }
       if (Array.isArray(value)) {
-        const newItems = newEntry ? newEntry[key].create(value) : value;
-        (newEntry || doc).push(...newItems);
+        if (newEntry) {
+          value.forEach(item => {
+            const newItem = newEntry[key].create(item);
+            newEntry[key].push(newItem);
+          });
+        } else {
+          doc.push(...value);
+        }
       } else if (newEntry) {
         newEntry[key] = value;
       } else {
