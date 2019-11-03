@@ -50,9 +50,10 @@ app.use((req, res, next) => {
 // routes
 app.use('/api/auth', authRouter);
 app.use('/api/boards', router(uploadMap, new MongooseDataService('board')));
-app
-  .use('/api/users', userRouter)
-  .use(router(uploadMap, new MongooseDataService('user')));
+app.use('/api/users', [
+  userRouter,
+  router(uploadMap, new MongooseDataService('user')),
+]);
 
 app.use((req, res, next) => {
   let err = new Error('404 Not Found');
