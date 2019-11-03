@@ -17,7 +17,7 @@ const boardSchema = new Schema(
       latitude: { type: Number, required: true },
       longitude: { type: Number, required: true },
     },
-    // community: String, // same as members?
+    community: String,
     description: String,
     [CREATED_BY]: { type: String, required: true, ref: 'User' },
     images: {

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
+const asyncHandler = require('../utils').asyncHandler;
 const keys = require('../config/keys');
 const User = require('../data/models/user.model');
 const auth = require('../middleware/auth');
@@ -11,16 +12,20 @@ router
   // @route   GET api/auth/login
   // @desc    Auth
   // @access  Public
-  .get('/login', auth, async (req, res) => {
-    try {
-      const user = await User.findById(req.user.id).select('-password');
-      // res.json(user);
-      res.send(user);
-    } catch (error) {
-      console.error(error.message);
-      res.status(500).send('Server Error');
-    }
-  })
+  .get(
+    '/login',
+    auth,
+    asyncHandler(async (req, res, next) => {
+      try {
+        const user = await User.findById(req.user.id).select('-password');
+        // res.json(user);
+        res.send(user);
+      } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server Error');
+      }
+    }),
+  )
 
   // @route   POST api/auth/user-login
   // @desc    Authenticate user && get token
@@ -31,7 +36,7 @@ router
       check('email', 'Please include a valid email').isEmail(),
       check('password', 'Password is required').exists(),
     ],
-    async (req, res) => {
+    asyncHandler(async (req, res, next) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -77,7 +82,7 @@ router
         console.error(error.message);
         res.status(500).send('Server error');
       }
-    },
+    }),
   )
 
   // auth with google
@@ -93,7 +98,7 @@ router
   .get(
     '/google/redirect',
     passport.authenticate('google', { session: false }),
-    (req, res) => {
+    asyncHandler(async (req, res, next) => {
       // Return jsonwebtoken
       const payload = {
         user: {
@@ -110,7 +115,7 @@ router
           res.redirect(`http://localhost:3000/redirect/${token}`);
         },
       );
-    },
+    }),
   );
 
 module.exports = router;

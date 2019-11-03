@@ -18,7 +18,7 @@ const userSchema = new Schema(
       unique: true, // Sets an index. Not a validator!
       validate: Validate.unique('email', 'User'),
     },
-    avatar: imageSchema,
+    avatar: String,
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),
