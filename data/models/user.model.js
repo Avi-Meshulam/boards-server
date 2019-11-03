@@ -1,5 +1,5 @@
 const { Schema, model } = require('mongoose');
-const { Validate } = require('../../dbUtils');
+const { Validate } = require('../services/dbUtils');
 const imageSchema = require('../schemas/image.schema');
 
 const IMAGES_COUNT_LIMIT = 4;
@@ -7,6 +7,10 @@ const IMAGES_COUNT_LIMIT = 4;
 const userSchema = new Schema(
   {
     _id: String, // URI of the user
+    googleId: {
+      type: String,
+      // unique: true,  TODO: Uncomment
+    },
     name: { type: String, required: true },
     email: {
       type: String,
@@ -25,11 +29,7 @@ const userSchema = new Schema(
       validate: Validate.uniqueArrayItem,
     },
   },
-  {
-    timestamps: true,
-    toObject: { virtuals: true },
-    toJSON: { virtuals: true },
-  },
+  { timestamps: true, toJSON: { virtuals: true } },
 );
 
 userSchema.virtual('posts', {
@@ -44,6 +44,13 @@ userSchema.virtual('postsCount', {
   localField: '_id',
   foreignField: 'posts.userId',
   count: true, // only get the number of docs
+});
+
+userSchema.virtual('liked', {
+  ref: 'Board',
+  localField: '_id',
+  foreignField: 'posts.likes',
+  options: { sort: { createdAt: 1 } },
 });
 
 userSchema.post('save', function(doc) {

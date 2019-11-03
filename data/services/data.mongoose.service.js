@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const DocUtils = require('./DocUtils');
 const IDataService = require('./IDataService');
 const QueryProxy = require('./QueryProxy');
-const { clearBuffers } = require('../../dbUtils');
+const { clearBuffers } = require('./dbUtils');
 
 class MongooseDataService extends IDataService {
   constructor(entityName) {
@@ -122,7 +122,7 @@ async function getSubDocumentHelper(
   );
   const document = await queryProxy.exec().catch(err => {
     console.error(err);
-    // throw httpErrors.badRequest;
+    throw httpErrors.badRequest;
   });
   if (!document) {
     return [, ,];

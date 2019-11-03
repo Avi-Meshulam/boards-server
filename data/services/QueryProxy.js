@@ -1,7 +1,5 @@
 const mongoose = require('mongoose');
 
-const QUERY_OPTIONS = ['sort', 'skip', 'limit'];
-
 class QueryProxy {
   constructor(query = new mongoose.Query(), pathHierarchy = [], isGet = false) {
     this._query = query;
@@ -13,44 +11,6 @@ class QueryProxy {
         return target[prop] || Reflect.get(target._query, prop, receiver);
       },
     });
-  }
-
-  get options() {
-    return this._options;
-  }
-
-  set options(options) {
-    this.setOptions(options);
-  }
-
-  setOptions(options = {}) {
-    this._options = options;
-    Object.keys(options).forEach(key => {
-      if (QUERY_OPTIONS.includes(key)) {
-        this._query[key](options[key]);
-      }
-    });
-  }
-
-  get conditions() {
-    return this._conditions;
-  }
-
-  set conditions(conditions) {
-    this.setConditions(conditions);
-  }
-
-  setConditions(conditions = {}) {
-    this._conditions = conditions;
-    const entries = [];
-    Object.entries(conditions).forEach(entry => {
-      if (entry.key && entry.value) {
-        entries.push(entry);
-      }
-    });
-    if (entries.length > 0) {
-      this._query.and(entries);
-    }
   }
 
   addSubDocumentIdCondition(subDocumentName, id) {

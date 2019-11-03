@@ -1,7 +1,8 @@
 const { Schema } = require('mongoose');
 const imageSchema = require('./image.schema');
-const { setReadonlyMiddleware } = require('../../dbUtils');
-const { Validate } = require('../../dbUtils');
+const postCategorySchema = require('../models/postCategory.model');
+const { setReadonlyMiddleware } = require('../services/dbUtils');
+const { Validate } = require('../services/dbUtils');
 
 const USER_ID = 'userId';
 const IMAGES_COUNT_LIMIT = 4;
@@ -29,6 +30,9 @@ commentSchema
 
 const postSchema = commentSchema.clone();
 
-postSchema.add({ title: { type: String, required: true } });
+postSchema.add({
+  title: { type: String, required: true },
+  category: { type: postCategorySchema, required: true },
+});
 
 module.exports = postSchema;

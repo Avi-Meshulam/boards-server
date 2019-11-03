@@ -1,8 +1,8 @@
 const { model, Schema } = require('mongoose');
 const imageSchema = require('../schemas/image.schema');
 const postSchema = require('../schemas/post.schema');
-const { setReadonlyMiddleware } = require('../../dbUtils');
-const { Validate } = require('../../dbUtils');
+const { setReadonlyMiddleware } = require('../services/dbUtils');
+const { Validate } = require('../services/dbUtils');
 
 const CREATED_BY = 'createdBy';
 const IMAGES_COUNT_LIMIT = 4;
@@ -11,9 +11,14 @@ const boardSchema = new Schema(
   {
     _id: String, // URI of the board
     name: { type: String, required: true },
+    location: {
+      address: String,
+      info: String,
+      latitude: { type: Number, required: true },
+      longitude: { type: Number, required: true },
+    },
+    // community: String, // same as members?
     description: String,
-    address: String,
-    latLng: { type: { lat: Number, lng: Number }, required: true },
     [CREATED_BY]: { type: String, required: true, ref: 'User' },
     images: {
       type: [imageSchema],
@@ -41,5 +46,12 @@ boardSchema.virtual('membersCount', {
 setReadonlyMiddleware(boardSchema, CREATED_BY);
 
 const Board = model('Board', boardSchema);
+
+// Waits for model's indexes to finish
+Board.on('index', function(err) {
+  if (err) {
+    throw new Error(err);
+  }
+});
 
 module.exports = Board;

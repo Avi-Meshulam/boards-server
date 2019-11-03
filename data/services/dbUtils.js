@@ -1,10 +1,15 @@
 const mongoose = require('mongoose');
-const { getDuplicates } = require('./utils');
+const { getDuplicates } = require('../../utils');
 
 function connectDB(dbName) {
   const DB_URL =
     process.env.MONGODB_URI || `mongodb://localhost:27017/${dbName}`;
-  mongoose.connect(DB_URL, { useNewUrlParser: true });
+  mongoose.connect(DB_URL, {
+    useCreateIndex: true,
+    useNewUrlParser: true,
+    // useFindAndModify: false,
+    // useUnifiedTopology: true,
+  });
   mongoose.connection.once('open', function() {
     console.log(`Successfully connected to MongoDB[${dbName}]`);
   });
@@ -83,7 +88,7 @@ const Validate = {
     let duplicates;
     return {
       validator: function(arr) {
-        if(arr.length <= 1) {
+        if (arr.length <= 1) {
           return true;
         }
         duplicates = getDuplicates(arr);

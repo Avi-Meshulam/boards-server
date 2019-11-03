@@ -8,6 +8,14 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = (uploadMap = new Map(), dataService = new DataService()) => {
   const uploadFields = [...uploadMap.keys()].map(key => ({ name: key }));
+  
+  // no value means storage and upload names are the same
+  uploadMap.forEach((value, key) => {
+    if (!value) {
+      uploadMap.set(key, key);
+    }
+  });
+
   const router = Router();
 
   router
@@ -64,7 +72,7 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
       '*',
       upload.fields(uploadFields, UPLOAD_MAX_COUNT),
       asyncHandler(async (req, res, next) => {
-        setRequestUploadData(req, uploadMap);
+        setUploadData(req, uploadMap);
         next();
       }),
     )
@@ -96,7 +104,7 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
       '*',
       upload.fields(uploadFields, UPLOAD_MAX_COUNT),
       asyncHandler(async (req, res, next) => {
-        setRequestUploadData(req, uploadMap);
+        setUploadData(req, uploadMap);
         next();
       }),
     )
@@ -176,11 +184,12 @@ const pathHierarchy = path =>
     .split('/')
     .slice(1);
 
-const setRequestUploadData = (req, uploadMap) => {
+const setUploadData = (req, uploadMap) => {
   if (!req.files) {
     return;
   }
   Object.entries(req.files).forEach(([uploadName, files]) => {
+    // no value means storage and upload names are the same
     const storageName = uploadMap.get(uploadName) || uploadName;
     if (storageName !== uploadName) {
       // uploadName represents an array
