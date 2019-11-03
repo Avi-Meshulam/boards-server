@@ -10,7 +10,11 @@ const IMAGES_COUNT_LIMIT = 4;
 const commentSchema = new Schema(
   {
     [USER_ID]: { type: String, required: true, ref: 'User' },
-    content: String,
+    post2post: {
+      type: Schema.Types.ObjectId,
+      ref: 'post',
+    },
+    body: String,
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),
@@ -20,6 +24,7 @@ const commentSchema = new Schema(
   { timestamps: true },
 );
 
+// middleware
 setReadonlyMiddleware(commentSchema, USER_ID);
 
 commentSchema.add({ comments: [commentSchema] });

@@ -9,15 +9,17 @@ const userSchema = new Schema(
     _id: String, // URI of the user
     googleId: {
       type: String,
-      // unique: true,  TODO: Uncomment
+      // unique: true,
+      validate: Validate.unique('googleId', 'User'),
     },
     name: { type: String, required: true },
     email: {
       type: String,
       required: true,
-      unique: true, // Sets an index. Not a validator!
+      // unique: true,
       validate: Validate.unique('email', 'User'),
     },
+    // password: { type: String, required: true },
     avatar: String,
     images: {
       type: [imageSchema],
@@ -32,6 +34,7 @@ const userSchema = new Schema(
   { timestamps: true, toJSON: { virtuals: true } },
 );
 
+// virtuals
 userSchema.virtual('posts', {
   ref: 'Board',
   localField: '_id',
@@ -53,11 +56,16 @@ userSchema.virtual('liked', {
   options: { sort: { createdAt: 1 } },
 });
 
+// hooks
 userSchema.post('save', function(doc) {
   if (this.isModified('_id')) {
     //TODO: Update userId across all DB
   }
 });
+
+// indexes
+userSchema.index('email', { unique: true });
+userSchema.index('googleId', { unique: true });
 
 const User = model('User', userSchema);
 

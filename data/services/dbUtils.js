@@ -7,8 +7,8 @@ function connectDB(dbName) {
   mongoose.connect(DB_URL, {
     useCreateIndex: true,
     useNewUrlParser: true,
-    // useFindAndModify: false,
-    // useUnifiedTopology: true,
+    useFindAndModify: false,
+    useUnifiedTopology: true,
   });
   mongoose.connection.once('open', function() {
     console.log(`Successfully connected to MongoDB[${dbName}]`);
@@ -17,7 +17,6 @@ function connectDB(dbName) {
     'error',
     console.error.bind(console, 'connection error:'),
   );
-  mongoose.set('useFindAndModify', false);
 }
 
 function setReadonlyMiddleware(schema, ...readOnlyFields) {

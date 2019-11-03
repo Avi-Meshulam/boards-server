@@ -11,13 +11,18 @@ const boardSchema = new Schema(
   {
     _id: String, // URI of the board
     name: { type: String, required: true },
+    geoLocation: {
+      type: { type: String, enum: ['Point'], required: true },
+      coordinates: { type: [Number], required: true },
+      index: { type: String, default: '2dsphere' },
+    },
     location: {
       address: String,
       info: String,
       latitude: { type: Number, required: true },
       longitude: { type: Number, required: true },
     },
-    community: String,
+    community: { type: String, required: true },
     description: String,
     [CREATED_BY]: { type: String, required: true, ref: 'User' },
     images: {
@@ -29,6 +34,7 @@ const boardSchema = new Schema(
   { timestamps: true, toJSON: { virtuals: true } },
 );
 
+// virtuals
 boardSchema.virtual('members', {
   ref: 'User',
   localField: '_id',
@@ -43,7 +49,11 @@ boardSchema.virtual('membersCount', {
   count: true, // only get the number of docs
 });
 
+// middleware
 setReadonlyMiddleware(boardSchema, CREATED_BY);
+
+// indexes
+boardSchema.index({geoLocation: "2dsphere"});
 
 const Board = model('Board', boardSchema);
 

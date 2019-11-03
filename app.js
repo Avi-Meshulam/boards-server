@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(cors());
 
-// KEY: Upload field name
+// KEY:   Upload field name
 // VALUE: Storage field name (no value means
 //        storage and upload names are the same)
 const uploadMap = new Map();
@@ -50,8 +50,9 @@ app.use((req, res, next) => {
 // routes
 app.use('/api/auth', authRouter);
 app.use('/api/boards', router(uploadMap, new MongooseDataService('board')));
-const usersRouter = app.use('/api/users', userRouter);
-usersRouter.use(router(uploadMap, new MongooseDataService('user')));
+app
+  .use('/api/users', userRouter)
+  .use(router(uploadMap, new MongooseDataService('user')));
 
 app.use((req, res, next) => {
   let err = new Error('404 Not Found');

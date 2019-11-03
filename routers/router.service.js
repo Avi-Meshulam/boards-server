@@ -8,7 +8,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = (uploadMap = new Map(), dataService = new DataService()) => {
   const uploadFields = [...uploadMap.keys()].map(key => ({ name: key }));
-  
+
   // no value means storage and upload names are the same
   uploadMap.forEach((value, key) => {
     if (!value) {
