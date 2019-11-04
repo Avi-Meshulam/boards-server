@@ -6,15 +6,17 @@ const IMAGES_COUNT_LIMIT = 4;
 
 const userSchema = new Schema(
   {
-    _id: String, // URI of the user
+    _id: { type: String, lowercase: true }, // URI of the user
     googleId: {
       type: String,
+      lowercase: true,
       // unique: true,
       validate: Validate.unique('googleId', 'User'),
     },
     name: { type: String, required: true },
     email: {
       type: String,
+      lowercase: true,
       required: true,
       // unique: true,
       validate: Validate.unique('email', 'User'),
@@ -27,7 +29,7 @@ const userSchema = new Schema(
     },
     // id's of boards which the user is a member of
     boards: {
-      type: [{ type: String, ref: 'Board' }],
+      type: [{ type: String, lowercase: true, ref: 'Board' }],
       validate: Validate.uniqueArrayItem,
     },
   },

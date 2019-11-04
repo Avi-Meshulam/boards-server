@@ -75,6 +75,9 @@ const Validate = {
         if (!this.isNew) {
           return true;
         }
+        if(typeof value === 'string') {
+          value = value.toLowerCase();
+        }
         const count = await this.model(model)
           .estimatedDocumentCount({ [fieldName]: value })
           .catch(err => err);

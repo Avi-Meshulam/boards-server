@@ -9,7 +9,7 @@ const IMAGES_COUNT_LIMIT = 4;
 
 const boardSchema = new Schema(
   {
-    _id: String, // URI of the board
+    _id: { type: String, lowercase: true }, // URI of the board
     name: { type: String, required: true },
     geoLocation: {
       type: { type: String, enum: ['Point'], required: true },
@@ -53,7 +53,7 @@ boardSchema.virtual('membersCount', {
 setReadonlyMiddleware(boardSchema, CREATED_BY);
 
 // indexes
-boardSchema.index({geoLocation: "2dsphere"});
+boardSchema.index({ geoLocation: '2dsphere' });
 
 const Board = model('Board', boardSchema);
 

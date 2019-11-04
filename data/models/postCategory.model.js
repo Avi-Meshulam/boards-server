@@ -2,7 +2,7 @@ const { Schema, model } = require('mongoose');
 
 const postCategorySchema = new Schema(
   {
-    _id: String, // category's name
+    _id: { type: String, lowercase: true }, // category's name
     description: String,
   },
   { /*timestamps: true,*/ toJSON: { virtuals: true } },
