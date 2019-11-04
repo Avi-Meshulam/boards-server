@@ -21,6 +21,7 @@ const googleStrategy = new GoogleStrategy(
         // if not, create user in our db
         console.log('email', email);
         new User({
+          _id: email.emails[0].value,
           googleId: email.id,
           name: email.displayName,
           avatar: email.photos[0].value,

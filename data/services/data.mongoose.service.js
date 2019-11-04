@@ -17,11 +17,11 @@ class MongooseDataService extends IDataService {
   }
 
   async get(filter, options) {
-    return await this._model.find(filter, options).exec();
+    return this._model.find(filter, options).exec();
   }
 
   async getById(id) {
-    return await this._model.findById(id).exec();
+    return this._model.findById(id).exec();
   }
 
   async getSubDocument(ownerId, pathHierarchy, filter, options) {
@@ -31,7 +31,8 @@ class MongooseDataService extends IDataService {
       pathHierarchy,
       true,
     );
-    if (targetElement) {  // an array item
+    if (targetElement) {
+      // => an array item
       subDocument = subDocument.find(item => item._id === targetElement);
     } else {
       DocUtils.filter(subDocument, filter);
@@ -42,7 +43,9 @@ class MongooseDataService extends IDataService {
 
   async insert(data) {
     const result = await this._model.create(data);
-    return result._doc;
+    // TODO: check which return option is faster (both work)
+    return this.getById(result._id);
+    // return clearBuffers(result._doc);
   }
 
   // insert data to a subDocument array
@@ -55,17 +58,17 @@ class MongooseDataService extends IDataService {
 
     const result = DocUtils.insert(subDocument, data);
     await document.save();
-    return clearBuffers(result);
+    // TODO: check which return option is faster (both work)
+    return clearBuffers(result._doc);
+    // return this.getSubDocument(ownerId, [...pathHierarchy, result.id]);
   }
 
   async update(filter, data) {
-    return await this._model
-      .updateMany(filter, data, { timestamps: false })
-      .exec();
+    return this._model.updateMany(filter, data, { timestamps: false }).exec();
   }
 
   async updateById(id, data) {
-    return await this._model
+    return this._model
       .findByIdAndUpdate(id, data, { timestamps: false, new: true })
       .exec();
   }
@@ -86,7 +89,7 @@ class MongooseDataService extends IDataService {
   }
 
   async remove(filter) {
-    return await this._model.deleteMany(filter).exec();
+    return this._model.deleteMany(filter).exec();
   }
 
   async removeById(id) {

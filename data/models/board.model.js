@@ -24,7 +24,7 @@ const boardSchema = new Schema(
     },
     community: { type: String, required: true },
     description: String,
-    [CREATED_BY]: { type: String, required: true, ref: 'User' },
+    [CREATED_BY]: { type: String, /*required: true,*/ ref: 'User' },
     images: {
       type: [imageSchema],
       validate: Validate.maxCount(IMAGES_COUNT_LIMIT),

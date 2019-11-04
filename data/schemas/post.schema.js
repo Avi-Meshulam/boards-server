@@ -37,7 +37,7 @@ const postSchema = commentSchema.clone();
 
 postSchema.add({
   title: { type: String, required: true },
-  category: { type: postCategorySchema, required: true },
+  category: { type: postCategorySchema, /*required: true*/ },
 });
 
 module.exports = postSchema;

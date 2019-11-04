@@ -53,18 +53,19 @@ function setReadonlyMiddleware(schema, ...readOnlyFields) {
 }
 
 function clearBuffers(obj) {
-  if (obj._doc) {
-    Object.entries(obj._doc).forEach(([key, value]) => {
-      if (value instanceof Buffer) {
-        obj[key] = undefined;
-      }
-      if (typeof value === 'object' || Array.isArray(value)) {
-        if (obj[key]) {
-          clearBuffers(obj[key]);
-        }
-      }
-    });
-  }
+  Object.entries(obj).forEach(([key, value]) => {
+    if (value instanceof Buffer) {
+      obj[key] = undefined;
+    }
+    if (
+      value &&
+      (value._doc ||
+        (value.isMongooseDocumentArray && value.length > 0) ||
+        value.constructor.name === 'EmbeddedDocument')
+    ) {
+      clearBuffers(value._doc || value);
+    }
+  });
   return obj;
 }
 
@@ -75,7 +76,7 @@ const Validate = {
         if (!this.isNew) {
           return true;
         }
-        if(typeof value === 'string') {
+        if (typeof value === 'string') {
           value = value.toLowerCase();
         }
         const count = await this.model(model)
