@@ -1,20 +1,18 @@
 const multer = require('multer');
 const Router = require('express').Router;
+const auth = require('../middleware/auth');
 const DataService = require('../data/services/IDataService');
-const asyncHandler = require('../utils').asyncHandler;
+const {
+  asyncHandler,
+  pathHierarchy,
+  setUploadData,
+} = require('./router.utils');
 
 const UPLOAD_MAX_COUNT = 8;
 const upload = multer({ storage: multer.memoryStorage() });
 
 const router = (uploadMap = new Map(), dataService = new DataService()) => {
   const uploadFields = [...uploadMap.keys()].map(key => ({ name: key }));
-
-  // no value means storage and upload names are the same
-  uploadMap.forEach((value, key) => {
-    if (!value) {
-      uploadMap.set(key, key);
-    }
-  });
 
   const router = Router();
 
@@ -70,6 +68,7 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
     // POST *
     .post(
       '*',
+      auth,
       upload.fields(uploadFields, UPLOAD_MAX_COUNT),
       asyncHandler(async (req, res, next) => {
         setUploadData(req, uploadMap);
@@ -174,34 +173,6 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
     );
 
   return router;
-};
-
-// *** helper functions *** //
-
-const pathHierarchy = path =>
-  path
-    .substr(1)
-    .split('/')
-    .slice(1);
-
-const setUploadData = (req, uploadMap) => {
-  if (!req.files) {
-    return;
-  }
-  Object.entries(req.files).forEach(([uploadName, files]) => {
-    // no value means storage and upload names are the same
-    const storageName = uploadMap.get(uploadName) || uploadName;
-    if (storageName !== uploadName) {
-      // uploadName represents an array
-      req.body[uploadName] = [];
-      files.forEach(file => {
-        req.body[uploadName].push({ [storageName]: file.buffer });
-      });
-    } else {
-      // in case of multiple files - take only the last one
-      req.body[uploadName] = files[files.length - 1].buffer;
-    }
-  });
 };
 
 module.exports = router;

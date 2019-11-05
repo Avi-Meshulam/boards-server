@@ -1,71 +1,72 @@
-const express = require('express');
-const router = express.Router();
-const gravatar = require('gravatar');
 const bcrypt = require('bcryptjs');
+const gravatar = require('gravatar');
 const jwt = require('jsonwebtoken');
-const asyncHandler = require('../utils').asyncHandler;
-const keys = require('../config/keys');
+// const multer = require('multer');
+const {
+  asyncHandler,
+  // pathHierarchy,
+  // setUploadData,
+} = require('./router.utils');
+const Router = require('express').Router;
 const { check, validationResult } = require('express-validator');
-const User = require('../data/models/user.model');
+const keys = require('../config/keys');
+const DataService = require('../data/services/IDataService');
+const httpErrors = require('../httpErrors');
 
-router
-  // @route   POST api/users
-  // @desc    Register user
-  // @access  Private
-  .post(
-    '/register',
-    [
-      check('name', 'Name is required')
-        .not()
-        .isEmpty(),
-      check('email', 'Please include a valid email').isEmail(),
-      check(
-        'password',
-        'Please insert password with 6 or more characters..',
-      ).isLength({ min: 6 }),
-    ],
-    asyncHandler(async (req, res, next) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
+// const UPLOAD_MAX_COUNT = 8;
+// const upload = multer({ storage: multer.memoryStorage() });
 
-      const { name, email, password } = req.body;
+const router = (uploadMap = new Map(), dataService = new DataService()) => {
+  // const uploadFields = [...uploadMap.keys()].map(key => ({ name: key }));
 
-      try {
-        // See if user exists
-        let user = await User.findOne({ email });
+  const router = Router();
 
+  router
+    // @route   POST api/users
+    // @desc    Register user
+    // @access  Private
+    .post(
+      '/register',
+      [
+        check('name', 'Name is required')
+          .not()
+          .isEmpty(),
+        check('email', 'Please include a valid email').isEmail(),
+        check(
+          'password',
+          'Please insert password with 6 or more characters..',
+        ).isLength({ min: 6 }),
+      ],
+      asyncHandler(async (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+          // return res.status(400).json({ errors: errors.array() });
+          throw httpErrors.badRequest;
+        }
+
+        // const result = await dataService.get({ email }, { limit: 1 });
+        const user = await dataService.getById(req.body.email);
         if (user) {
-          return res
-            .status(400)
-            .json({ errors: [{ msg: 'User already exists' }] });
+          throw httpErrors.alreadyExists('User');
         }
 
         // Get user gravatar
-        const avatar = gravatar.url(email, {
+        const avatar = gravatar.url(req.body.email, {
           s: '200',
           r: 'pg',
           d: 'mm',
         });
 
-        user = new User({
-          name,
-          email,
-          avatar,
-          password,
-        });
-
         // Encrypt password
         const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
+        const password = await bcrypt.hash(req.body.password, salt);
 
-        await user.save();
+        const result = await dataService.insert({ ...req.body, password, avatar });
 
         // Return jsonwebtoken
         const payload = {
           user: {
-            id: user.id,
+            id: result.id,
           },
         };
 
@@ -78,31 +79,10 @@ router
             res.json({ token });
           },
         );
+      }),
+    );
 
-        //res.send('User registered');
-      } catch (error) {
-        console.error(error.message);
-        res.status(500).send('Server error');
-      }
-    }),
-  );
-
-// @route   DELETE api/users
-// @desc    DELETE user
-// @access  Private
-// router.delete(
-//   '/',
-//   auth,
-//   asyncHandler(async (req, res, next) => {
-//     try {
-//       // Remove user
-//       await User.findOneAndRemove({ _id: req.user.id });
-//       res.send('User deleted');
-//     } catch (error) {
-//       console.error(error.message);
-//       res.status(500).send('Server error');
-//     }
-//   }),
-// );
+  return router;
+};
 
 module.exports = router;

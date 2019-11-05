@@ -9,6 +9,7 @@ const MongooseDataService = require('./data/services/data.mongoose.service');
 const authRouter = require('./routers/auth.router');
 const router = require('./routers/router.service');
 const userRouter = require('./routers/user.router');
+const boardRouter = require('./routers/board.router');
 
 require('./services/passport-setup');
 require('./prototypes');
@@ -33,7 +34,7 @@ app.use(cors());
 //        storage and upload names are the same)
 const uploadMap = new Map();
 uploadMap.set('images', 'image');
-uploadMap.set('image');
+uploadMap.set('image', 'image');
 
 // static routes
 app.use(express.static(path.join(__dirname, 'public')));
@@ -47,12 +48,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// data services
+const boardDataService = new MongooseDataService('board');
+const userDataService = new MongooseDataService('user');
+
 // routes
 app.use('/api/auth', authRouter);
-app.use('/api/boards', router(uploadMap, new MongooseDataService('board')));
+app.use(
+  '/api/boards',
+  boardRouter(uploadMap, boardDataService),
+  router(uploadMap, boardDataService),
+);
 app.use('/api/users', [
-  userRouter,
-  router(uploadMap, new MongooseDataService('user')),
+  userRouter(uploadMap, userDataService),
+  router(uploadMap, userDataService),
 ]);
 
 app.use((req, res, next) => {

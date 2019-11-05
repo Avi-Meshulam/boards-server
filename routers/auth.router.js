@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
-const asyncHandler = require('../utils').asyncHandler;
+const { asyncHandler } = require('./router.utils');
 const keys = require('../config/keys');
 const User = require('../data/models/user.model');
 const auth = require('../middleware/auth');

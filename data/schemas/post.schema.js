@@ -10,10 +10,6 @@ const IMAGES_COUNT_LIMIT = 4;
 const commentSchema = new Schema(
   {
     [USER_ID]: { type: String, required: true, ref: 'User' },
-    post2post: {
-      type: Schema.Types.ObjectId,
-      ref: 'post',
-    },
     body: String,
     images: {
       type: [imageSchema],
@@ -37,7 +33,7 @@ const postSchema = commentSchema.clone();
 
 postSchema.add({
   title: { type: String, required: true },
-  category: { type: postCategorySchema, /*required: true*/ },
+  category: { type: String, enum: ['General'], /*required: true*/ },
 });
 
 module.exports = postSchema;

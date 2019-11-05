@@ -1,7 +1,3 @@
-const asyncHandler = fn => (req, res, next) => {
-  return Promise.resolve(fn(req, res, next)).catch(next);
-};
-
 // converts a function with a callback param to a function
 // that returns a promise. In case input param is an object -
 // promisify all its functions.
@@ -82,7 +78,6 @@ const caseInsensitiveSort = (a, b) =>
   b.toString().localeCompare(a.toString(), undefined, { sensitivity: 'base' });
 
 module.exports = {
-  asyncHandler,
   promisify,
   sortArray,
   getDuplicates,

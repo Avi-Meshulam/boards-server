@@ -1,10 +1,9 @@
 const mongoose = require('mongoose');
 const { getDuplicates } = require('../../utils');
+const { dbURI } = require('../../config/keys').mongodb;
 
 function connectDB(dbName) {
-  const DB_URL =
-    process.env.MONGODB_URI || `mongodb://localhost:27017/${dbName}`;
-  mongoose.connect(DB_URL, {
+  mongoose.connect(dbURI, {
     useCreateIndex: true,
     useNewUrlParser: true,
     useFindAndModify: false,
