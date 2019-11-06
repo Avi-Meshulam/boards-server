@@ -1,6 +1,6 @@
 module.exports = {
   get badRequest() {
-    let err = new Error('400 Bad Request');
+    let err = new Error('Bad Request');
     err.status = 400;
     return err;
   },
@@ -8,6 +8,12 @@ module.exports = {
   alreadyExists(entityName) {
     let err = new Error(`${entityName} already exists`);
     err.status = 400;
+    return err;
+  },
+
+  notFound(entityName) {
+    let err = new Error(`${entityName} not found`);
+    err.status = 404;
     return err;
   },
 };
