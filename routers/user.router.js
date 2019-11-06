@@ -1,24 +1,14 @@
 const bcrypt = require('bcryptjs');
+const { check, validationResult } = require('express-validator');
+const Router = require('express').Router;
 const gravatar = require('gravatar');
 const jwt = require('jsonwebtoken');
-// const multer = require('multer');
-const {
-  asyncHandler,
-  // pathHierarchy,
-  // setUploadData,
-} = require('./router.utils');
-const Router = require('express').Router;
-const { check, validationResult } = require('express-validator');
+const { asyncHandler } = require('./router.utils');
 const keys = require('../config/keys');
 const DataService = require('../data/services/IDataService');
 const httpErrors = require('../httpErrors');
 
-// const UPLOAD_MAX_COUNT = 8;
-// const upload = multer({ storage: multer.memoryStorage() });
-
-const router = (uploadMap = new Map(), dataService = new DataService()) => {
-  // const uploadFields = [...uploadMap.keys()].map(key => ({ name: key }));
-
+const router = (dataService = new DataService()) => {
   const router = Router();
 
   router
@@ -40,18 +30,19 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
       asyncHandler(async (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-          // return res.status(400).json({ errors: errors.array() });
-          throw httpErrors.badRequest;
+          res.status(400).json({ errors: errors.array() });
         }
 
+        const { email, password } = req.body;
+
         // const result = await dataService.get({ email }, { limit: 1 });
-        const user = await dataService.getById(req.body.email);
+        const user = await dataService.getById(email);
         if (user) {
-          throw httpErrors.alreadyExists('User');
+          next(httpErrors.alreadyExists('User'));
         }
 
         // Get user gravatar
-        const avatar = gravatar.url(req.body.email, {
+        const avatar = gravatar.url(email, {
           s: '200',
           r: 'pg',
           d: 'mm',
@@ -59,9 +50,13 @@ const router = (uploadMap = new Map(), dataService = new DataService()) => {
 
         // Encrypt password
         const salt = await bcrypt.genSalt(10);
-        const password = await bcrypt.hash(req.body.password, salt);
+        const encoded = await bcrypt.hash(password, salt);
 
-        const result = await dataService.insert({ ...req.body, password, avatar });
+        const result = await dataService.insert({
+          ...req.body,
+          password: encoded,
+          avatar,
+        });
 
         // Return jsonwebtoken
         const payload = {
