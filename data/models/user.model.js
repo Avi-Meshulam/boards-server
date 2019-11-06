@@ -7,10 +7,9 @@ const IMAGES_COUNT_LIMIT = 4;
 const userSchema = new Schema(
   {
     _id: { type: String, lowercase: true }, // URI of the user
+    password: { type: String, /*required: true,*/ select: false },
     googleId: {
       type: String,
-      lowercase: true,
-      // unique: true,
       validate: Validate.unique('googleId', 'User'),
     },
     name: { type: String, required: true },
@@ -18,7 +17,6 @@ const userSchema = new Schema(
       type: String,
       lowercase: true,
       required: true,
-      // unique: true,
       validate: Validate.unique('email', 'User'),
     },
     // password: { type: String, required: true },
