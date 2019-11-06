@@ -9,7 +9,7 @@ const IMAGES_COUNT_LIMIT = 4;
 
 const boardSchema = new Schema(
   {
-    _id: { type: String, lowercase: true }, // URI of the board
+    // _id: { type: String, lowercase: true }, // URI of the board
     name: { type: String, required: true },
     geoLocation: {
       type: { type: String, enum: ['Point'], required: true },
